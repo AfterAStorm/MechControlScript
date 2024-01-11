@@ -53,7 +53,7 @@ namespace IngameScript
         static float[] LegOffsets =
         {
             0f, // ex: LeftLeg offset is zero
-            .5f // ex: RightLeg offset is half
+            .75f // ex: RightLeg offset is 3/4
         };
 
         // -- Debug -- \\
