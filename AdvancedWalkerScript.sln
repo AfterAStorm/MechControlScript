@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33815.320
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdvancedWalkerScript", "AdvancedWalkerScript\AdvancedWalkerScript.csproj", "{94C4B37D-0958-4C4E-A8A3-9275CC6892EB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94C4B37D-0958-4C4E-A8A3-9275CC6892EB}.Debug|x64.ActiveCfg = Debug|x64
+		{94C4B37D-0958-4C4E-A8A3-9275CC6892EB}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {74690277-5386-4CCC-A7AF-2CC328168220}
+	EndGlobalSection
+EndGlobal
