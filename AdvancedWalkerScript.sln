@@ -23,5 +23,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		..\SurfaceRendering\SurfaceRendering\SurfaceRendering.projitems*{61eba249-19f3-48b6-a25b-a4cee90168ba}*SharedItemsImports = 13
+		..\SurfaceRendering\SurfaceRendering\SurfaceRendering.projitems*{94c4b37d-0958-4c4e-a8a3-9275cc6892eb}*SharedItemsImports = 4
 	EndGlobalSection
 EndGlobal
