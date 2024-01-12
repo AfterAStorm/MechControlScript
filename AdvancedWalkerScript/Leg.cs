@@ -73,11 +73,6 @@ namespace IngameScript
 
             #region # - Methods
 
-            double ToDegrees(double radians)
-            {
-                return (180 / Math.PI) * radians;
-            }
-
             public void Update(double delta)
             {
                 if (Offset > 0)
@@ -95,7 +90,7 @@ namespace IngameScript
                     }
                 }
 
-                AnimationStep += delta;
+                AnimationStep += delta * 2;
                 AnimationStep %= 4; // 0 to 3
                 //int step = (int)Math.Floor(AnimationStep);
                 //double standingHeight = .85f;
@@ -124,22 +119,22 @@ namespace IngameScript
                 }
                 double targetX = standingHeight * (ThighLength + CalfLength) - upX;*/
 
-                double step = AnimationStep + 2 % 4;
+                double step = AnimationStep; //+ 2 % 4;
 
                 int hipMultiplifer = InvertHips ? -1 : 1;
                 int kneesMultiplier = InvertKnees ? -1 : 1;
                 int feetMultiplier = InvertFeet ? -1 : 1;
 
-                double distances = 10;
-                double measuredHeight = (distances + distances) / 2 * (float)Math.Sqrt(2) / 2;
-                double pitchIncline = ToDegrees(distances / distances) - 45;
+                //double distances = 10;
+                //double measuredHeight = (distances + distances) / 2 * (float)Math.Sqrt(2) / 2;
+                //double pitchIncline = ToDegrees(distances / distances) - 45;
 
                 double hipAngleRad = HipStator.Angle;
-                double hipAngleDeg = ToDegrees(hipAngleRad);
+                double hipAngleDeg = hipAngleRad.ToDegrees();
                 double kneeAngleRad = KneeStator.Angle;
-                double kneeAngleDeg = ToDegrees(kneeAngleRad);
+                double kneeAngleDeg = kneeAngleRad.ToDegrees();
                 double footAngleRad = FootStator.Angle;
-                double footAngleDeg = ToDegrees(footAngleRad);
+                double footAngleDeg = footAngleRad.ToDegrees();
 
                 /*double kneeTargetRad = Math.Acos(
                     (Math.Pow(targetX, 2) + Math.Pow(targetY, 2) - Math.Pow(CalfLength, 2) - Math.Pow(ThighLength, 2)) / (2 * ThighLength * CalfLength)
@@ -153,16 +148,16 @@ namespace IngameScript
                 //double hipTargetRad = MathHelper.ToRadians(-70 + sin * 30 - cos * 15 - sin2 * 15);
                 //double kneeTargetRad = MathHelper.ToRadians(-90 - sin * 60 + cos * 15);
 
-                double hipTargetRad = MathHelper.ToRadians(
-                    -60 - Math.Sin(step / 4 * Math.PI * 2) * 15
-                );
-                double kneeTargetRad = hipTargetRad + MathHelper.ToRadians(
+                double hipTargetRad = (
+                    -60 + Math.Sin(step / 4 * Math.PI * 2) * 15
+                ).ToRadians();
+                double kneeTargetRad = hipTargetRad -(
                     Math.Cos(step / 4 * Math.PI * 2) * 20
-                );
+                ).ToRadians();
 
-                double hipTargetDeg = ToDegrees(hipTargetRad) * hipMultiplifer;
-                double kneeTargetDeg = ToDegrees(kneeTargetRad) * kneesMultiplier * hipMultiplifer;
-                double footTargetDeg = (kneeAngleDeg - hipAngleDeg) * feetMultiplier;
+                double hipTargetDeg = hipTargetRad.ToDegrees() * hipMultiplifer;
+                double kneeTargetDeg = kneeTargetRad.ToDegrees() * kneesMultiplier * hipMultiplifer;
+                double footTargetDeg = (kneeAngleDeg.AbsoluteDegrees() - hipAngleDeg.AbsoluteDegrees()) * feetMultiplier;
 
                 /*while (hipTargetDeg < 0)
                     hipTargetDeg = 180 - hipTargetDeg;

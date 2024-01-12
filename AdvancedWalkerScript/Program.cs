@@ -59,7 +59,6 @@ namespace IngameScript
         // -- Debug -- \\
 
         string DebugLCD = "debug";
-        TestRenderer debugRenderer;
 
         ///////////////// 
         // Code Script // 
@@ -100,10 +99,6 @@ namespace IngameScript
         {
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
             debug?.WriteText(""); // clear
-            if (debug != null)
-            {
-                debugRenderer = new TestRenderer(debug);
-            }
 
             // Core blocks
 
@@ -259,7 +254,6 @@ namespace IngameScript
         /// <param name="updateSource"></param>
         public void Main(string argument, UpdateType updateSource)
         {
-            debugRenderer?.Render();
             if (argument != null)
                 switch (argument.ToLower().Trim()) // Clean up argument, allow inputs
                 {
@@ -277,6 +271,7 @@ namespace IngameScript
 
             double delta = Runtime.TimeSinceLastRun.TotalSeconds;
             Vector3 playerInput = cockpit.MoveIndicator;
+            //playerInput = new Vector3(0, 0, 1); // always move :D
 
             if (!Vector3.IsZero(playerInput))
             {
