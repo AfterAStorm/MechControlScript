@@ -50,6 +50,7 @@
     <AdditionalFiles Include="Instructions.readme" />
     <AdditionalFiles Include="thumb.png" />
     <AdditionalFiles Include="MDK\whitelist.cache" />
+    <Compile Include="Utilities.cs" />
   </ItemGroup>
   <Import Project="..\..\SurfaceRendering\SurfaceRendering\SurfaceRendering.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
