@@ -59,6 +59,7 @@ namespace IngameScript
         // -- Debug -- \\
 
         string DebugLCD = "debug";
+        TestRenderer debugRenderer;
 
         ///////////////// 
         // Code Script // 
@@ -99,6 +100,10 @@ namespace IngameScript
         {
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
             debug?.WriteText(""); // clear
+            if (debug != null)
+            {
+                debugRenderer = new TestRenderer(debug);
+            }
 
             // Core blocks
 
@@ -254,6 +259,7 @@ namespace IngameScript
         /// <param name="updateSource"></param>
         public void Main(string argument, UpdateType updateSource)
         {
+            debugRenderer?.Render();
             if (argument != null)
                 switch (argument.ToLower().Trim()) // Clean up argument, allow inputs
                 {
