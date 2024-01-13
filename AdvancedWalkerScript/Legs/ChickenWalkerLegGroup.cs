@@ -24,10 +24,27 @@ namespace IngameScript
     {
         public class ChickenWalkerLegGroup : LegGroup
         {
+            protected override double[] CalculateAngles(double step)
+            {
+                double hipDeg =
+                    -60 + Math.Sin(step / 4 * Math.PI * 2) * 15;
+                double kneeDeg =
+                    hipDeg - Math.Cos(step / 4 * Math.PI * 2) * 20 - 30;
+                double footDeg =
+                    (kneeDeg - hipDeg);
+                return new double[] { hipDeg, kneeDeg, footDeg };
+            }
+
             public override void Update(double delta)
             {
                 base.Update(delta);
+                Log($"Step: {AnimationStep}");
 
+                var leftAngles = CalculateAngles(AnimationStep);
+                var rightAngles = CalculateAngles(AnimationStep + 2 % 4);
+                Log($"{leftAngles[0]};{leftAngles[1]};{leftAngles[2]}");
+                Log($"{rightAngles[0]};{rightAngles[1]};{rightAngles[2]}");
+                SetAngles(leftAngles[0], leftAngles[1], leftAngles[2], rightAngles[0], rightAngles[1], -rightAngles[2]);
                 /*double step = AnimationStep; //+ 2 % 4;
 
                 double hipMultiplifer = InvertHips ? -1d : 1d;
