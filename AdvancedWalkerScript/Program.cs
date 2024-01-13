@@ -24,37 +24,44 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
 
+        // {{ Source Code and Wiki can be found at https://github.com/AfterAStorm/AdvancedWalkerScript }} //
+
         // -- Configuration -- \\
 
-        string CockpitName = "auto"; // auto will find the main cockpit
-        string ReferenceName = "auto"; // auto will find a main remote control
+        // - Blocks
 
-        bool InvertHips = false; // invert hios?
+        string CockpitName = "auto"; // auto will find the main cockpit
+        string ReferenceName = "auto"; // auto will find a main remote
+
+        string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block!
+        string StatusLCDName = "Mech Status"; // based on the Name of the block!
+
+        // - Joints
+
+        /*
+         * Leg Types:
+         * 1 = Chicken walker
+         * 2 = Humanoid
+         * 3 = Spideroid
+         * 4 = Digitigrade
+         * 
+        */
+        byte LegType = 1;
+
+        bool InvertHips = false; // invert hips?
         bool InvertKnees = false; // invert knees?
         bool InvertFeet = false; // invert feet?
 
-        float HipOffset = 0f;
-        float KneeOffset = 0f;
-        float FootOffset = 0f;
+        float HipOffset = 0f; // degrees, applies to ALL hips
+        float KneeOffset = 0f; // degrees, applies to ALL knees
+        float FootOffset = 0f; // degrees, applies to ALL feet
+
+        static float MaxRPM = float.MaxValue; // 60f is the max speed for rotors
+        // *Configure motor limits in the blocks themselves!* //
+
+        // - Walking
 
         static float WalkSpeed = 2f;
-
-        static float MaxRPM = 60f; // 60 is the max speed
-        static float RotorLimits = 135f;
-
-        // Leg Groups
-        static string[] LegGroups =
-        {
-            "Left Leg",
-            "Right Leg"
-        };
-
-        // Animation Offsets
-        static float[] LegOffsets =
-        {
-            0f, // ex: LeftLeg offset is zero
-            .75f // ex: RightLeg offset is 3/4
-        };
 
         // -- Debug -- \\
 
@@ -73,14 +80,15 @@ namespace IngameScript
 
         // Variables //
 
+        public static IMyTextPanel debug = null;
+
         IMyShipController cockpit = null;
         IMyShipController reference = null;
-        static IMyTextPanel debug = null;
-        private List<Leg> legs = new List<Leg>();
+        private List<LegGroup> legs = new List<LegGroup>();
+        private bool crouched = false;
+        private bool crouchOverride = false; // argument crouch
 
         Vector3 movement = Vector3.Zero;
-        TimeSpan walkStart = TimeSpan.Zero;
-        bool moving = false;
 
         private new void Echo(params string[] messages)
         {
@@ -89,6 +97,17 @@ namespace IngameScript
                 base.Echo(message);
             else
                 debug.WriteText(message + "\n", true);
+        }
+
+        private LegGroup CreateLegFromType(byte type)
+        {
+            switch (type)
+            {
+                case 0:
+                    return new ChickenWalkerLegGroup();
+                default:
+                    throw new Exception("Leg type not implemented!");
+            }
         }
 
         /// <summary>
@@ -169,9 +188,9 @@ namespace IngameScript
 
                 Leg leg = new Leg(hip, knee, foot);
 
-                leg.InvertHips = InvertHips ? !leg.InvertHips : leg.InvertHips;
-                leg.InvertKnees = InvertKnees ? !leg.InvertKnees : leg.InvertKnees;
-                leg.InvertFeet = InvertFeet ? !leg.InvertFeet : leg.InvertFeet;
+                leg.InvertHips = InvertHips ^ leg.InvertHips;
+                leg.InvertKnees = InvertKnees ^ leg.InvertKnees;
+                leg.InvertFeet = InvertFeet ^ leg.InvertFeet;
 
                 leg.HipOffset = HipOffset;
                 leg.KneeOffset = KneeOffset;
@@ -232,6 +251,9 @@ namespace IngameScript
             // Initialize configuration
             //LoadConfiguration();
 
+            // Initialize subclasses
+            Leg.Program = this;
+
             // Get blocks
             GetBlocks();
 
@@ -254,11 +276,16 @@ namespace IngameScript
         /// <param name="updateSource"></param>
         public void Main(string argument, UpdateType updateSource)
         {
+            // Handle arguments
             if (argument != null)
                 switch (argument.ToLower().Trim()) // Clean up argument, allow inputs
                 {
                     case "reload": // Reloads the script's blocks and configuration
                         GetBlocks();
+                        break;
+                    case "crouch": // Toggle crouch
+                        crouchOverride = !crouchOverride; // crouchOverride is for this specifically, because the normal crouched variable is set based on
+                        // the MoveIndicator (then gets set to this value if true)
                         break;
                 }
 
@@ -273,15 +300,13 @@ namespace IngameScript
             Vector3 playerInput = cockpit.MoveIndicator;
             //playerInput = new Vector3(0, 0, 1); // always move :D
 
-            if (!Vector3.IsZero(playerInput))
-            {
+            crouched = playerInput.Y < 0 || crouchOverride; // if player is holding [c] or ran "crouch" on the pb
+
+            if (playerInput.Z != 0d)
                 movement = playerInput;
-            }
             else
-            {
                 movement *= .1f * (float)delta;
-            }
-            debug?.WriteText(movement.ToString());
+            debug?.WriteText(movement.ToString()); // TODO: remove
 
             if (movement.Length() <= .1) // stop it at some threshold
             {
@@ -291,7 +316,7 @@ namespace IngameScript
             double forward = movement.Z;
 
             // Update legs
-            if (Vector3.IsZero(movement))
+            if (Math.Abs(forward) <= .05) // .05 to zero
             {
                 foreach (Leg leg in legs)
                 {
