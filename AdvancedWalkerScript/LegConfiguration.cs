@@ -29,12 +29,81 @@ namespace IngameScript
         public struct LegConfiguration
         {
 
+            /*
+             * 
+             * Formatted as such:
+             * 
+             * [Leg]
+             * HipOffsets=x
+             * KneeOffsets=x
+             * FeetOffsets=x
+             * HipsInverted=y
+             * KneesInverted=y
+             * FeetInverted=y
+             * 
+             * [Advanced]
+             * WalkCycleSpeed=1
+             * 
+             * */
+
             #region # - Properties
 
-            public bool HipsInverted, KneesInverted, FeetInverted;
-            public float HipOffsets, KneeOffsets, FeetOffsets;
+            public static readonly LegConfiguration DEFAULT = Parse("").Value;
 
-            public float AnimationSpeed;
+            private static MyIni ini;
+            private string configurationString;
+
+            public byte LegType;
+            public bool HipsInverted, KneesInverted, FeetInverted;
+            public double HipOffsets, KneeOffsets, FootOffsets;
+
+            public double AnimationSpeed;
+
+            #endregion
+
+            #region # - Methods
+
+            public bool HasChanged(string iniData)
+            {
+                return !configurationString.Equals(iniData);
+            }
+
+            public string ToCustomDataString()
+            {
+                ini.Set("Leg", "LegType", LegType);
+                ini.SetComment("Leg", "LegType", "The leg type, 1 = Chicken walker\r\n2 = Humanoid\r\n3 = Spideroid\r\n4 = Digitigrade");
+
+                ini.Set("Leg", "HipOffsets", HipOffsets);
+                ini.Set("Leg", "KneeOffsets", KneeOffsets);
+                ini.Set("Leg", "FootOffsets", FootOffsets);
+
+                ini.Set("Leg", "HipsInverted", HipsInverted);
+                ini.Set("Leg", "KneesInverted", KneesInverted);
+                ini.Set("Leg", "FeetInverted", FeetInverted);
+                return ini.ToString();
+            }
+
+            public static LegConfiguration? Parse(string iniData)
+            {
+                ini = ini ?? new MyIni();
+                bool parsed = ini.TryParse(iniData);
+                if (!parsed)
+                    return null;
+                LegConfiguration config = new LegConfiguration
+                {
+                    LegType = ini.Get("Leg", "LegType").ToByte(),
+
+                    HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(),
+                    KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(),
+                    FootOffsets = ini.Get("Leg", "FootOffsets").ToDouble(),
+
+                    HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
+                    KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
+                    FeetInverted = ini.Get("Leg", "FeetInverted").ToBoolean(),
+                };
+                config.configurationString = config.ToCustomDataString();
+                return config;
+            }
 
             #endregion
 
