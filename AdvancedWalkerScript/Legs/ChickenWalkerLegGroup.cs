@@ -41,7 +41,7 @@ namespace IngameScript
                 Log($"Step: {AnimationStep}");
 
                 var leftAngles = CalculateAngles(AnimationStep);
-                var rightAngles = CalculateAngles(AnimationStep + 2 % 4);
+                var rightAngles = CalculateAngles(AnimationStepOffset);
                 Log($"{leftAngles[0]};{leftAngles[1]};{leftAngles[2]}");
                 Log($"{rightAngles[0]};{rightAngles[1]};{rightAngles[2]}");
                 SetAngles(leftAngles[0], leftAngles[1], leftAngles[2], rightAngles[0], rightAngles[1], -rightAngles[2]);

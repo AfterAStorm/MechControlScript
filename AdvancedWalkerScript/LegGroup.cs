@@ -44,6 +44,8 @@ namespace IngameScript
             public IMyCameraBlock[] InclineCameras;
 
             public double AnimationStep = 0; // pff, who needes getters and setters?
+            public double AnimationStepOffset => OffsetLegs ? AnimationStep + 2 % 4 : AnimationStep;
+            public bool OffsetLegs = true;
 
             protected double HipInversedMultiplier = 1;
             protected double KneeInversedMultiplier = 1;
@@ -87,6 +89,8 @@ namespace IngameScript
                 HipInversedMultiplier = Configuration.HipsInverted ? -1 : 1;
                 KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
                 FeetInversedMultiplier = Configuration.FeetInverted ? -1 : 1;
+
+                OffsetLegs = delta != 0;
 
                 // Update animation step
                 AnimationStep += delta * Configuration.AnimationSpeed;
