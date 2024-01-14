@@ -82,7 +82,7 @@ namespace IngameScript
 
         // Diagnostics //
 
-        double[] averageRuntimes = new double[20];
+        double[] averageRuntimes = new double[15];
         int averageRuntimeIndex = 0;
 
         // Variables //
@@ -445,8 +445,9 @@ namespace IngameScript
             Echo("Advanced Walker Script");
             Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")}");
             Echo($"");
-            Echo($"Last Tick: {lastRuntime}ms");
+            Echo($"Last       Tick: {lastRuntime}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
+            //Echo($"{string.Join(", ", averageRuntimes)}");
 
             // Handle arguments
             if (argument != null)
@@ -496,11 +497,11 @@ namespace IngameScript
             {
                 delta = 0;
                 foreach (LegGroup leg in legs)
-                    leg.Animation = Animation.Idle;
+                    leg.Animation = !crouched ? Animation.Idle : Animation.Crouch;
             }
             else
                 foreach (LegGroup leg in legs)
-                    leg.Animation = Animation.Walk;
+                    leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
 
             foreach (LegGroup leg in legs)
                 leg.Update(delta);
