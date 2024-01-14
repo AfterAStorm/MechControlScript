@@ -26,10 +26,11 @@ namespace IngameScript
         {
             protected override double[] CalculateAngles(double step)
             {
+                bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
                 double hipDeg =
-                    -60 + Math.Sin(step / 4 * Math.PI * 2) * 15;
+                    (!crouch ? -60 : -70) + Math.Sin(step / 4 * Math.PI * 2) * 15d * (crouch ? .5d : 1d);
                 double kneeDeg =
-                    hipDeg - Math.Cos(step / 4 * Math.PI * 2) * 20 - 30;
+                    hipDeg - Math.Cos(step / 4 * Math.PI * 2) * 20d * (crouch ? .5d : 1d) - (!crouch ? 30d : 40d);
                 double footDeg =
                     (kneeDeg - hipDeg);
                 return new double[] { hipDeg, kneeDeg, footDeg };
@@ -44,6 +45,7 @@ namespace IngameScript
                 switch (Animation)
                 {
                     default:
+                    case Animation.Crouch:
                     case Animation.Idle:
                         AnimationWaitTime = 0;
                         AnimationStep = 0;
@@ -55,19 +57,20 @@ namespace IngameScript
                             lg.AutoLock = true;
                         }
                         break;
+                    case Animation.CrouchWalk:
                     case Animation.Walk:
                         if (AnimationWaitTime == 0)
-                            AnimationStep = 3d;
+                            AnimationStep = 0d;
                         AnimationWaitTime += delta * Configuration.AnimationSpeed;
-                        if (Math.Abs(AnimationWaitTime) <= 1f)
+                        if (Math.Abs(AnimationWaitTime) <= 3f)
                         {
                             foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                             {
                                 lg.Enabled = false;
                                 lg.AutoLock = true;
                             }
-                            leftAngles = CalculateAngles(-AnimationStep + 2);
-                            rightAngles = CalculateAngles(-AnimationStep + 2);
+                            leftAngles = CalculateAngles(-AnimationWaitTime);
+                            rightAngles = CalculateAngles(-AnimationWaitTime);
                             break;
                         }
                         // else
