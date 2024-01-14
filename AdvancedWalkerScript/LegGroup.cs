@@ -41,11 +41,16 @@ namespace IngameScript
             public List<Joint> LeftFootStators = new List<Joint>();
             public List<Joint> RightFootStators = new List<Joint>();
 
+            public List<IMyLandingGear> LeftGears = new List<IMyLandingGear>();
+            public List<IMyLandingGear> RightGears = new List<IMyLandingGear>();
+
             public IMyCameraBlock[] InclineCameras;
 
             public double AnimationStep = 0; // pff, who needes getters and setters?
             public double AnimationStepOffset => OffsetLegs ? AnimationStep + 2 % 4 : AnimationStep;
             public bool OffsetLegs = true;
+            public Animation Animation = Animation.Idle;
+            public double AnimationWaitTime = 0;
 
             protected double HipInversedMultiplier = 1;
             protected double KneeInversedMultiplier = 1;
