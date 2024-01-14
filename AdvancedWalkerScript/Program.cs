@@ -432,17 +432,17 @@ namespace IngameScript
 
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
-            Log(moveInput.ToString());
 
             crouched = moveInput.Y < 0 || crouchOverride;
             // TODO: use crouched / crouching
 
             Vector3 movementDirection = (moveInput - movement) * .5f;
 
-            movement.X += movementDirection.X * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier);
-            movement.Z += movementDirection.Z * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier);
+            movement.X += movementDirection.X * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+            movement.Z += movementDirection.Z * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
 
-
+            Log(moveInput.ToString());
+            Log(movement.ToString());
 
             foreach (LegGroup leg in legs)
                 leg.Update(delta);
