@@ -73,6 +73,10 @@ namespace IngameScript
 
         // Constants //
 
+        public const double DefaultHipOffsets = 0d;
+        public const double DefaultKneeOffsets = 0d;
+        public const double DefaultFeetOffsets = 0d;
+
         private const UpdateFrequency RunFrequency = UpdateFrequency.Update1;
 
         // Regex: HR5+ turns into [h, r, 5, +], HL turns into [h, l, null, null], HLeft5+ turns into [h, left, 5, +]

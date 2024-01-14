@@ -97,9 +97,9 @@ namespace IngameScript
                 {
                     LegType = ini.Get("Leg", "LegType").ToByte(),
 
-                    HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(),
-                    KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(),
-                    FootOffsets = ini.Get("Leg", "FootOffsets").ToDouble(),
+                    HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(DefaultHipOffsets),
+                    KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(DefaultKneeOffsets),
+                    FootOffsets = ini.Get("Leg", "FootOffsets").ToDouble(DefaultFeetOffsets),
 
                     HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
                     KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
