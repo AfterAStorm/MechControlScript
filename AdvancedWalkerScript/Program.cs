@@ -56,7 +56,7 @@ namespace IngameScript
 
         // - Walking
 
-        static float WalkCycleSpeed = 2f;
+        static float WalkCycleSpeed = 3f;
 
         // -- Debug -- \\
 
@@ -439,10 +439,24 @@ namespace IngameScript
             Vector3 movementDirection = (moveInput - movement) * .5f;
 
             movement.X += movementDirection.X * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
-            movement.Z += movementDirection.Z * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+            movement.Z += movementDirection.Z * (movementDirection.Z > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+
+            if (Math.Abs(movementDirection.X) < .01 && Math.Abs(movement.X) < .01)
+                movement.X = 0;
+            if (Math.Abs(movementDirection.Z) < .02 && Math.Abs(movement.Z) < .03)
+                movement.Z = 0;
 
             Log(moveInput.ToString());
             Log(movement.ToString());
+
+            delta *= -movement.Z; // negative because -Z is forwards!
+
+            if (Math.Abs(movement.Z) == 0)
+            {
+                delta = 0;
+                foreach (LegGroup leg in legs)
+                    leg.AnimationStep = 0;
+            }
 
             foreach (LegGroup leg in legs)
                 leg.Update(delta);
