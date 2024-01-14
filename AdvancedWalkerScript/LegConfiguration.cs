@@ -71,7 +71,7 @@ namespace IngameScript
             public string ToCustomDataString()
             {
                 ini.Set("Leg", "LegType", LegType);
-                ini.SetComment("Leg", "LegType", "The leg type, 1 = Chicken walker\r\n2 = Humanoid\r\n3 = Spideroid\r\n4 = Digitigrade");
+                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t4 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
                 ini.Set("Leg", "KneeOffsets", KneeOffsets);
