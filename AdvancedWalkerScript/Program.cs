@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -38,6 +39,10 @@ namespace IngameScript
         string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block!
         string StatusLCDName = "Mech Status"; // based on the Name of the block!
 
+        bool UseCockpitLCDs = false; // should cockpits show the leds instead?
+        int IntegrityLEDNumber = 0; // starting at zero, if the cockpit has more than one screen you can change it here
+        int StatusLEDNumber = 0;
+
         // - Joints
 
         /*
@@ -49,7 +54,7 @@ namespace IngameScript
         */
 
         static float AccelerationMultiplier = 1f; // how fast the mech accelerates, 1f is normal, .5f is half speed, 2f is double speed
-        static float DecelerationMultiplier = 1; //  how fast the mech decelerates, same as above
+        static float DecelerationMultiplier = 1f; //  how fast the mech decelerates, same as above
 
         static float MaxRPM = float.MaxValue; // 60f is the max speed for rotors
         // *Configure motor limits in the blocks themselves!* //
@@ -68,10 +73,10 @@ namespace IngameScript
 
         // Constants //
 
-        //const bool UseCustomDataAsConfiguration = true;
         private const UpdateFrequency RunFrequency = UpdateFrequency.Update1;
 
-        //private MyIni configuration = new MyIni();
+        // Regex: HR5+ turns into [h, r, 5, +], HL turns into [h, l, null, null], HLeft5+ turns into [h, left, 5, +]
+        private static readonly System.Text.RegularExpressions.Regex namePattern = new System.Text.RegularExpressions.Regex(@"^([^lLrR]*)([lr]{1}|left{1}|right{1})([0-9]+)?([-+]{1})?$");
 
         // Default Joint Configuration //
 
@@ -83,6 +88,7 @@ namespace IngameScript
         // Variables //
 
         public static IMyTextPanel debug = null;
+        public static IMyTextPanel debug2 = null;
 
         List<IMyShipController> cockpits = new List<IMyShipController>();
         private List<LegGroup> legs = new List<LegGroup>();
@@ -111,6 +117,17 @@ namespace IngameScript
             }
         }
 
+        private System.Text.RegularExpressions.Match MatchName(string name)
+        {
+            foreach (string segment in name.Split(' '))
+            {
+                var match = namePattern.Match(segment.ToLower());
+                if (match.Success)
+                    return match;
+            }
+            return null;
+        }
+
         /// <summary>
         /// This checks a stator and sees if it should add it to the lists of a <see cref="LegGroup"/>
         /// <br />
@@ -122,92 +139,88 @@ namespace IngameScript
         /// <param name="currentLegs"></param>
         /// <param name="createLegAnyway"></param>
         /// <returns></returns>
-        private bool CheckStator(IMyMotorStator stator, System.Text.RegularExpressions.Regex pattern, ref List<LegGroup> lastLegs, ref List<LegGroup> currentLegs, bool createLegAnyway = false)
+        private bool CheckStator(IMyMotorStator stator, ref List<LegGroup> lastLegs, ref List<LegGroup> currentLegs, bool createLegAnyway = false)
         {
-            foreach (string segment in stator.CustomName.Split(' '))
-            {
-                System.Text.RegularExpressions.Match match = pattern.Match(segment.ToLower());
-                if (!match.Success || match.Groups[1].Value.Length <= 0 || match.Groups[2].Value.Length <= 0)
-                    continue;
-                int id;
-                bool parsedId = int.TryParse(match.Groups[3].Value, out id);
-                LegGroup lastLeg = lastLegs.IsValidIndex(id) ? lastLegs[id] : null;
-                LegConfiguration? lastConfig = lastLeg?.Configuration;
-                LegGroup currentLeg = currentLegs.IsValidIndex(id) ? currentLegs[id] : null;
+            var match = MatchName(stator.CustomName);
+            if (match == null || match.Groups[1].Value.Length <= 0 | match.Groups[2].Value.Length <= 0)
+                return false; // invalid
+            int id;
+            int.TryParse(match.Groups[3].Value, out id);
+            LegGroup lastLeg = lastLegs.IsValidIndex(id) ? lastLegs[id] : null;
+            LegConfiguration? lastConfig = lastLeg?.Configuration;
+            LegGroup currentLeg = currentLegs.IsValidIndex(id) ? currentLegs[id] : null;
 
-                if (currentLeg == null)
+            if (currentLeg == null)
+            {
+                if (lastConfig.HasValue && lastConfig.Value.HasChanged(stator.CustomData))
                 {
-                    if (lastConfig.HasValue && lastConfig.Value.HasChanged(stator.CustomData))
+                    LegConfiguration? configuration = LegConfiguration.Parse(stator.CustomData);
+                    if (configuration.HasValue)
                     {
-                        LegConfiguration? configuration = LegConfiguration.Parse(stator.CustomData);
-                        if (configuration.HasValue)
-                        {
-                            currentLeg = CreateLegFromType(configuration.Value.LegType);
-                            currentLeg.Configuration = configuration.Value;
-                            currentLegs.Insert(id, currentLeg);
-                        }
-                    }
-                    if (currentLeg == null && createLegAnyway)
-                    {
-                        LegConfiguration configuration = LegConfiguration.DEFAULT;
-                        currentLeg = CreateLegFromType(configuration.LegType);
-                        currentLeg.Configuration = configuration;
+                        currentLeg = CreateLegFromType(configuration.Value.LegType);
+                        currentLeg.Configuration = configuration.Value;
                         currentLegs.Insert(id, currentLeg);
                     }
-                    else if (currentLeg == null)
-                        return true; // check later, there is a possibility of another joint having a valid config
                 }
-
-                currentLeg.Configuration.AnimationSpeed = WalkCycleSpeed;
-                stator.CustomData = currentLeg.Configuration.ToCustomDataString();
-
-                bool isLeft = false;
-                switch (match.Groups[2].Value)
+                if (currentLeg == null && createLegAnyway)
                 {
-                    case "l":
-                    case "left":
-                        isLeft = true;
-                        break;
+                    LegConfiguration configuration = LegConfiguration.DEFAULT;
+                    currentLeg = CreateLegFromType(configuration.LegType);
+                    currentLeg.Configuration = configuration;
+                    currentLegs.Insert(id, currentLeg);
+                }
+                else if (currentLeg == null)
+                    return true; // check later, there is a possibility of another joint having a valid config
+            }
+
+            currentLeg.Configuration.AnimationSpeed = WalkCycleSpeed;
+            stator.CustomData = currentLeg.Configuration.ToCustomDataString();
+
+            bool isLeft = false;
+            switch (match.Groups[2].Value)
+            {
+                case "l":
+                case "left":
+                    isLeft = true;
+                    break;
                     // no need to check right since it's infered
                     // and the regex only searched for l, left, r, and right; so it can only ever be r and right anyway
-                }
+            }
 
-                Joint joint = new Joint(stator, new JointConfiguration()
-                {
-                    Inversed = match.Groups[4].Value.Equals("-"),
-                    Offset = 0
-                });
+            Joint joint = new Joint(stator, new JointConfiguration()
+            {
+                Inversed = match.Groups[4].Value.Equals("-"),
+                Offset = 0 // parse in INI?
+            });
 
-                switch (match.Groups[1].Value)
-                {
-                    case "h":
+            switch (match.Groups[1].Value)
+            {
+                case "h":
                     //case "hip":
-                        if (isLeft)
-                            currentLeg.LeftHipStators.Add(joint);
-                        else
-                            currentLeg.RightHipStators.Add(joint);
-                        break;
-                    case "k":
+                    if (isLeft)
+                        currentLeg.LeftHipStators.Add(joint);
+                    else
+                        currentLeg.RightHipStators.Add(joint);
+                    break;
+                case "k":
                     //case "knee":
-                        if (isLeft)
-                            currentLeg.LeftKneeStators.Add(joint);
-                        else
-                            currentLeg.RightKneeStators.Add(joint);
-                        break;
-                    case "f":
+                    if (isLeft)
+                        currentLeg.LeftKneeStators.Add(joint);
+                    else
+                        currentLeg.RightKneeStators.Add(joint);
+                    break;
+                case "f":
                     //case "fp":
                     //case "foot":
                     //case "feet":
-                        if (isLeft)
-                            currentLeg.LeftFootStators.Add(joint);
-                        else
-                            currentLeg.RightFootStators.Add(joint);
-                        break;
-                    default:
-                        Log($"Unknown joint type \"{match.Groups[0].Value}\"");
-                        break;
-                }
-                break;
+                    if (isLeft)
+                        currentLeg.LeftFootStators.Add(joint);
+                    else
+                        currentLeg.RightFootStators.Add(joint);
+                    break;
+                default:
+                    Log($"Unknown joint type \"{match.Groups[0].Value}\"");
+                    break;
             }
             return false; // do not check, it's good!
         }
@@ -219,7 +232,9 @@ namespace IngameScript
         private void GetBlocks()
         {
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
+            debug2 = GridTerminalSystem.GetBlockWithName(DebugLCD + "2") as IMyTextPanel;
             debug?.WriteText(""); // clear
+            debug2?.WriteText("");
 
             // Core blocks
 
@@ -240,14 +255,11 @@ namespace IngameScript
             List<LegGroup> currentLegs = new List<LegGroup>();
             legs.Clear();
 
-            // Regex: HR5+ turns into [h, r, 5, +], HL turns into [h, l, null, null], HLeft5+ turns into [h, left, 5, +]
-            System.Text.RegularExpressions.Regex pattern = new System.Text.RegularExpressions.Regex(@"^([^lLrR]*)([lr]{1}|left{1}|right{1})([0-9]+)?([-+]{1})?$");
-
             List<IMyMotorStator> recheckLater = new List<IMyMotorStator>();
             foreach (IMyMotorStator stator in stators)
             {
                 Log($"Checking stator {stator.CustomName}");
-                if (CheckStator(stator, pattern, ref lastLegs, ref currentLegs))
+                if (CheckStator(stator, ref lastLegs, ref currentLegs))
                 {
                     recheckLater.Add(stator);
                     Log($"Checking {stator.CustomName} later");
@@ -259,7 +271,44 @@ namespace IngameScript
             foreach (IMyMotorStator stator in recheckLater)
             {
                 Log($"Rechecking stator {stator.CustomName}");
-                CheckStator(stator, pattern, ref lastLegs, ref currentLegs, true);
+                CheckStator(stator, ref lastLegs, ref currentLegs, true);
+            }
+
+            List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
+            GridTerminalSystem.GetBlocksOfType<IMyLandingGear>(blocks);
+            foreach (IMyTerminalBlock block in blocks)
+            {
+                var match = MatchName(block.CustomName);
+                if (match == null || match.Groups[1].Value.Length <= 0 || match.Groups[2].Value.Length <= 0)
+                    continue;
+                int id;
+                int.TryParse(match.Groups[3].Value, out id);
+                LegGroup currentLeg = currentLegs.IsValidIndex(id) ? currentLegs[id] : null;
+                if (currentLeg == null)
+                    continue; // no leg was created, no point for extra parts if not actual leg exists :p
+
+                bool isLeft = false;
+                switch (match.Groups[2].Value)
+                {
+                    case "l":
+                    case "left":
+                        isLeft = true;
+                        break;
+                        // no need to check right since it's infered
+                        // and the regex only searched for l, left, r, and right; so it can only ever be r and right anyway
+                }
+
+                switch (match.Groups[1].Value)
+                {
+                    case "mg":
+                    case "lg":
+                        if (block is IMyLandingGear)
+                            if (isLeft)
+                                currentLeg.LeftGears.Add(block as IMyLandingGear);
+                            else
+                                currentLeg.RightGears.Add(block as IMyLandingGear);
+                        break;
+                }
             }
 
             legs = currentLegs;
@@ -320,12 +369,7 @@ namespace IngameScript
             }*/
         }
 
-        /*private MyIniValue GetConfigurationValue(string section, string key)
-        {
-            return configuration.Get(section, key);
-        }*/
-
-        /*/// <summary>
+        /*/// <summary> // I'm keeping this for sentimental value, it will get removed in the workshop publish from minification anyway
         /// Loads the configuration
         /// </summary>
         private void LoadConfiguration()
@@ -366,9 +410,6 @@ namespace IngameScript
         /// </summary>
         public Program()
         {
-            // Initialize configuration
-            //LoadConfiguration();
-
             // Initialize subclasses
             LegGroup.Program = this;
 
@@ -443,7 +484,7 @@ namespace IngameScript
 
             if (Math.Abs(movementDirection.X) < .01 && Math.Abs(movement.X) < .01)
                 movement.X = 0;
-            if (Math.Abs(movementDirection.Z) < .02 && Math.Abs(movement.Z) < .03)
+            if (Math.Abs(movementDirection.Z) < .3 && Math.Abs(movement.Z) < .3)
                 movement.Z = 0;
 
             Log(moveInput.ToString());
@@ -455,45 +496,14 @@ namespace IngameScript
             {
                 delta = 0;
                 foreach (LegGroup leg in legs)
-                    leg.AnimationStep = 0;
+                    leg.Animation = Animation.Idle;
             }
+            else
+                foreach (LegGroup leg in legs)
+                    leg.Animation = Animation.Walk;
 
             foreach (LegGroup leg in legs)
                 leg.Update(delta);
-            /*if (cockpit == null || reference == null || legs.Count <= 0)
-                return; // Not ready
-
-            double delta = Runtime.TimeSinceLastRun.TotalSeconds;
-            Vector3 playerInput = cockpit.MoveIndicator;
-            //playerInput = new Vector3(0, 0, 1); // always move :D
-
-            crouched = playerInput.Y < 0 || crouchOverride; // if player is holding [c] or ran "crouch" on the pb
-
-            if (playerInput.Z != 0d)
-                movement = playerInput;
-            else
-                movement *= .1f * (float)delta;
-            debug?.WriteText(movement.ToString()); // TODO: remove
-
-            if (movement.Length() <= .1) // stop it at some threshold
-            {
-                movement = Vector3.Zero;
-            }
-
-            double forward = movement.Z;
-
-            // Update legs
-            if (Math.Abs(forward) <= .05) // .05 to zero
-            {
-                foreach (Leg leg in legs)
-                {
-                    leg.AnimationStep = 0;
-                    leg.OffsetPassed = 0;
-                }
-                delta = 0;
-            }
-            foreach (Leg leg in legs)
-                leg.Update(delta);*/
         }
     }
 }
