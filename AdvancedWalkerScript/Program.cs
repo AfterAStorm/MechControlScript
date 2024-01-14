@@ -402,7 +402,7 @@ namespace IngameScript
 
             // Detailed Info
             Echo("Advanced Walker Script");
-            Echo($"{legs.Count} leg{(legs.Count != 1 ? "s" : "")}");
+            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last Tick: {lastRuntime}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
