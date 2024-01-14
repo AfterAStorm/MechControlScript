@@ -74,12 +74,16 @@ namespace IngameScript
                 ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t4 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
+                ini.SetComment("Leg", "HipOffsets", "The joints' offsets");
                 ini.Set("Leg", "KneeOffsets", KneeOffsets);
                 ini.Set("Leg", "FootOffsets", FootOffsets);
 
                 ini.Set("Leg", "HipsInverted", HipsInverted);
+                ini.SetComment("Leg", "HipsInverted", "If the joints should be inverted or not");
                 ini.Set("Leg", "KneesInverted", KneesInverted);
                 ini.Set("Leg", "FeetInverted", FeetInverted);
+
+                ini.SetSectionComment("Leg", "These are all the leg group settings associated with this joint, changing these will change all the other joints");
                 return ini.ToString();
             }
 
