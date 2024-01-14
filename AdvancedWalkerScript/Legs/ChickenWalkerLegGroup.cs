@@ -40,8 +40,55 @@ namespace IngameScript
                 base.Update(delta);
                 Log($"Step: {AnimationStep}");
 
-                var leftAngles = CalculateAngles(AnimationStep);
-                var rightAngles = CalculateAngles(AnimationStepOffset);
+                double[] leftAngles, rightAngles;
+                switch (Animation)
+                {
+                    default:
+                    case Animation.Idle:
+                        AnimationWaitTime = 0;
+                        AnimationStep = 0;
+                        leftAngles = CalculateAngles(0);
+                        rightAngles = CalculateAngles(0);
+                        foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
+                        {
+                            lg.Enabled = true;
+                            lg.AutoLock = true;
+                        }
+                        break;
+                    case Animation.Walk:
+                        if (AnimationWaitTime == 0)
+                            AnimationStep = 3d;
+                        AnimationWaitTime += delta * Configuration.AnimationSpeed;
+                        if (Math.Abs(AnimationWaitTime) <= 1f)
+                        {
+                            foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
+                            {
+                                lg.Enabled = false;
+                                lg.AutoLock = true;
+                            }
+                            leftAngles = CalculateAngles(-AnimationStep + 2);
+                            rightAngles = CalculateAngles(-AnimationStep + 2);
+                            break;
+                        }
+                        // else
+                        leftAngles = CalculateAngles(AnimationStep);
+                        rightAngles = CalculateAngles(AnimationStepOffset);
+
+                        /*
+                         *   3
+                         * 2   4
+                         *   1
+                         * */
+
+                        bool leftGears = AnimationStep < 3f && AnimationStep > 1f;
+                        foreach (IMyLandingGear lg in LeftGears)
+                            lg.Enabled = leftGears;
+
+                        foreach (IMyLandingGear lg in RightGears)
+                            lg.Enabled = !leftGears;
+                        break;
+                }
+
                 Log($"{leftAngles[0]};{leftAngles[1]};{leftAngles[2]}");
                 Log($"{rightAngles[0]};{rightAngles[1]};{rightAngles[2]}");
                 SetAngles(leftAngles[0], leftAngles[1], leftAngles[2], rightAngles[0], rightAngles[1], -rightAngles[2]);
