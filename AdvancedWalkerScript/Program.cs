@@ -44,6 +44,10 @@ namespace IngameScript
         int IntegrityLEDNumber  = 2; // starting at one, if the cockpit has more than one screen you can change it here
         int StatusLEDNumber     = 3; // set to zero to disable
 
+        // - Mech
+
+        public static float StandingHeight = .95f; // a multiplier applied to some leg types, does what it says on the tin
+
         // - Joints
 
         /*
@@ -113,6 +117,7 @@ namespace IngameScript
         private bool crouched = false;
         private bool crouchOverride = false; // argument crouch
 
+        private Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
 
         private static void Log(params object[] messages)
@@ -269,16 +274,31 @@ namespace IngameScript
 
             // Handle arguments
             if (argument != null)
-                switch (argument.ToLower().Trim()) // Clean up argument, allow inputs
+            {
+                string[] arguments = argument.ToLower().Split(' ');
+                switch (arguments[0].Trim()) // Clean up argument, allow inputs
                 {
                     case "reload": // Reloads the script's blocks and configuration
                         GetBlocks();
                         break;
-                    case "crouch": // Toggle crouch (overrides the cockpit [c])
-                        crouchOverride = !crouchOverride; // crouchOverride is for this specifically, because the normal crouched variable is set based on
+                    case "crouch": // Toggle crouch (overrides the cockpit [c]), argument for "on" or "true" and "off" or "false", off and false aren't checked but infered
+                        if (argument.Length > 1)
+                            crouchOverride = arguments[1].Equals("on") || argument[1].Equals("true");
+                        else
+                            crouchOverride = !crouchOverride; // crouchOverride is for this specifically, because the normal crouched variable is set based on
                         // the MoveIndicator (then gets set to this value if true)
                         break;
+                    case "walk": // b or backwards to go backwards, forward is infered and default
+                        if (argument.Length > 1)
+                            movementOverride = argument[1].Equals("b") || argument[1].Equals("backwards") ? Vector3.Backward : Vector3.Forward;
+                        else
+                            movementOverride = Vector3.Forward;
+                        break;
+                    case "halt": // Halt mech movement override
+                        movementOverride = Vector3.Zero;
+                        break;
                 }
+            }
 
             // Only update during specified update times!
             if (!updateSource.HasFlag(UpdateType.Update1))
@@ -292,7 +312,7 @@ namespace IngameScript
 
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
 
-            Vector3 moveInput = controller?.MoveIndicator ?? Vector3.Zero;
+            Vector3 moveInput = Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero) + movementOverride, Vector3.MinusOne, Vector3.One);
             Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is pitch, Y is yaw
 
             if (GyroscopeSteering)

@@ -32,7 +32,7 @@ namespace IngameScript
                 // the equations anyway
                 // x and y are flipped, yay!
                 double targetY = Math.Sin((step / 4 * 360).ToRadians()) * 1.5f * Configuration.StepLengthMultiplier - 1; // x  //Math.Sin((AnimationStep / 4 * 360).ToRadians()) * 3;
-                double targetX = MathHelper.Clamp(3 - Math.Cos((step / 4 * 360).ToRadians()) * 2f, float.MinValue, 2.5f) + 1 - (crouch ? 2 : 0); // y  //Math.Cos((AnimationStep / 4 * 360).ToRadians()) * 3;
+                double targetX = (MathHelper.Clamp(3 - Math.Cos((step / 4 * 360).ToRadians()) * 2f, float.MinValue, 2.5f) + 1 - (crouch ? 2 : 0)) * StandingHeight; // y  //Math.Cos((AnimationStep / 4 * 360).ToRadians()) * 3;
                 if (Animation == Animation.Turn)
                 {
                     targetY = -1;
