@@ -38,4 +38,4 @@ Need help setting up? Goto the [wiki](https://github.com/AfterAStorm/AdvancedWal
 
 A lot of C# norms when it comes to classes or naming are ignored because it's a space engineers script, not a NASA ship controller
 
-Comments are always useeful, especially for the folks trying to learn!
+Comments are always useful, especially for the folks trying to learn!
