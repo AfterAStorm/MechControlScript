@@ -22,6 +22,7 @@ namespace IngameScript
 {
     partial class Program
     {
+        // Probably should've been a [Flags] but then the elegant switch statement wouldn't work so ¯\_(ツ)_/¯
         public enum Animation
         {
             Idle,

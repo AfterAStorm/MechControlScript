@@ -186,15 +186,15 @@ namespace IngameScript
                 return null;
             }
 
-            private static void AddToLeg(FetchedBlock block, LegGroup leg)
+            private static void AddToLeg(FetchedBlock block, LegGroup leg) // adds a fetched block to the leg
             {
-                block.Block.CustomData = leg.Configuration.ToCustomDataString();
-                Log($"Block {block.Block.CustomName} as {block.Type.ToString()}");
+                block.Block.CustomData = leg.Configuration.ToCustomDataString(); // set new configuration
+                Log($"Block {block.Block.CustomName} as {block.Type}");
                 switch (block.Type)
                 {
                     case BlockType.Hip:
                     case BlockType.Knee:
-                    case BlockType.Foot:
+                    case BlockType.Foot: // if its a joint, create it and add it appropriately
                         Joint joint = new Joint(block.Block as IMyMotorStator, new JointConfiguration()
                         {
                             Inversed = false,
@@ -222,7 +222,7 @@ namespace IngameScript
                                 break;
                         }
                         break;
-                    case BlockType.LandingGear:
+                    case BlockType.LandingGear: // otherwise just add it normally
                         if (block.Side == BlockSide.Left)
                             leg.LeftGears.Add(block.Block as IMyLandingGear);
                         else
@@ -288,7 +288,7 @@ namespace IngameScript
                         continue;
                     }
 
-                    // otherwise create a new leg
+                    // Otherwise create a new leg
                     LegConfiguration config = LegConfiguration.Parse(fetched.Ini?.ToString() ?? "");
                     config.Id = fetched.Group;
                     LegGroup leg = CreateLegFromType(config.LegType);

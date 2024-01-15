@@ -135,7 +135,7 @@ namespace IngameScript
                         leftAngles = CalculateAngles(AnimationStep);
                         rightAngles = CalculateAngles(AnimationStepOffset);
 
-                        /*
+                        /* this might be wrong now
                          *   3
                          * 2   4
                          *   1
@@ -160,7 +160,7 @@ namespace IngameScript
                         break;
                 }
 
-                Log(rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
+                Log("ChickenWalker (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
                 SetAngles(
                     leftAngles.HipDegrees,
                     leftAngles.KneeDegrees,

@@ -70,6 +70,7 @@ namespace IngameScript
         /// <returns></returns>
         public static double AbsoluteDegrees(this double degrees, bool nineties = false)
         {
+            // Some angle black magic to spice up your day!
             if (nineties)
             {
                 while (degrees < -90)

@@ -42,9 +42,6 @@ namespace IngameScript
              * FeetInverted=y
              * StepLengthMultiplier=1
              * 
-             * [Advanced]
-             * WalkCycleSpeed=1
-             * 
              * */
 
             #region # - Properties
@@ -54,7 +51,6 @@ namespace IngameScript
             public int Id;
 
             private static MyIni ini;
-            private string configurationString;
 
             public byte LegType;
             public bool HipsInverted, KneesInverted, FeetInverted;
@@ -70,11 +66,6 @@ namespace IngameScript
             #endregion
 
             #region # - Methods
-
-            public bool HasChanged(string iniData)
-            {
-                return !configurationString.Equals(iniData);
-            }
 
             public string ToCustomDataString()
             {
@@ -117,7 +108,6 @@ namespace IngameScript
 
                     defaultValue = 1
                 };
-                config.configurationString = config.ToCustomDataString();
                 return config;
             }
 

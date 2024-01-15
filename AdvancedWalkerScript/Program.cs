@@ -140,13 +140,6 @@ namespace IngameScript
             debug?.WriteText(""); // clear
             debug2?.WriteText("");
 
-            // Core blocks
-
-            //string cockpitSpecifier = CockpitName;//GetConfigurationValue("Mech Core", "Cockpit").ToString();
-            //string referenceSpecifier = RemoteControlName;//GetConfigurationValue("Mech Core", "Reference").ToString();
-            //Log("Looking for cockpit with specifier", cockpitSpecifier);
-            //Log("Looking for reference rc with specifier", referenceSpecifier);
-
             // Get all cockpits if they are the main cockpit (or the main remote control) // MainRemoteControl
             GridTerminalSystem.GetBlocksOfType(cockpits, c =>
                 c is IMyRemoteControl
@@ -160,6 +153,7 @@ namespace IngameScript
 
             Log($"{(cockpits.Count > 0 ? "Found" : "Didn't Find")} cockpit(s)");
 
+            // Get LCDs
             integrityRenderers.Clear();
             statusRenderers.Clear();
             if (UseCockpitLCDs)
@@ -176,6 +170,7 @@ namespace IngameScript
                     }
                 }
 
+            // Get torso twist stators and other blocks
             torsoTwistStators.Clear();
             foreach (FetchedBlock block in BlockFinder.GetBlocksOfType<IMyMotorStator>(motor => BlockFetcher.ParseBlock(motor).HasValue).Select(motor => BlockFetcher.ParseBlock(motor)))
             {
@@ -192,7 +187,7 @@ namespace IngameScript
                 }
             }
 
-            // Leg Groups
+            // Get the leg groups and the blocks associated with them
             BlockFetcher.GetBlocks();
         }
 
@@ -239,7 +234,6 @@ namespace IngameScript
         {
             // Initialize subclasses
             Singleton = this;
-            LegGroup.Program = this;
 
             // Get blocks
             GetBlocks();
@@ -319,6 +313,7 @@ namespace IngameScript
 
             Vector3 moveInput = Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero) + movementOverride, Vector3.MinusOne, Vector3.One);
             Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is pitch, Y is yaw
+            float rollInput = controller?.RollIndicator ?? 0f; // X is pitch, Y is yaw
 
             if (GyroscopeSteering)
             {
@@ -345,11 +340,9 @@ namespace IngameScript
 
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
-            Log("length:", torsoTwistStators.Count);
 
             bool turning = moveInput.X != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
-            // TODO: use crouched / crouching
 
             Vector3 movementDirection = (moveInput - movement) * .5f;
 

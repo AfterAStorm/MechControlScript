@@ -38,9 +38,6 @@ namespace IngameScript
 
             #region # - Properties
 
-            public static Program Program; // set in the Program's constructor, a reference so we don't need to pass it in the constructor
-            // ^ bad practice but this is a space engineers script, this isn't NASA!
-
             public LegConfiguration Configuration;
 
             public List<Joint> LeftHipStators = new List<Joint>();
@@ -55,7 +52,7 @@ namespace IngameScript
             public List<IMyLandingGear> LeftGears = new List<IMyLandingGear>();
             public List<IMyLandingGear> RightGears = new List<IMyLandingGear>();
 
-            public IMyCameraBlock[] InclineCameras;
+            //public IMyCameraBlock[] InclineCameras; // TODO: use these, give them a purpose!
 
             public double AnimationStep = 0; // pff, who needes getters and setters?
             public double AnimationStepOffset => OffsetLegs ? AnimationStep + 2 % 4 : AnimationStep;
@@ -94,6 +91,12 @@ namespace IngameScript
                 SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
             }
 
+            /// <summary>
+            /// Used internally in each leg implementation, calculates each leg angle
+            /// </summary>
+            /// <param name="step"></param>
+            /// <returns></returns>
+            /// <exception cref="Exception"></exception>
             protected virtual LegAngles CalculateAngles(double step)
             {
                 throw new Exception("Not Implemented");
@@ -106,6 +109,7 @@ namespace IngameScript
                 KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
                 FeetInversedMultiplier = Configuration.FeetInverted ? -1 : 1;
 
+                // If the legs should be offset or not, used for animation stuffs
                 OffsetLegs = forwardsDelta != 0;
 
                 // Update animation step
