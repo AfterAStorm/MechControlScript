@@ -24,53 +24,111 @@ namespace IngameScript
     {
         public class ChickenWalkerLegGroup : LegGroup
         {
-            protected override double[] CalculateAngles(double step)
+            protected override LegAngles CalculateAngles(double step)
             {
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
-                double hipDeg =
+
+                // shamelessly borrowed from https://opentextbooks.clemson.edu/wangrobotics/chapter/inverse-kinematics/
+                // the equations anyway
+                // x and y are flipped, yay!
+                double targetY = Math.Sin((step / 4 * 360).ToRadians()) * 1.5f * Configuration.StepLengthMultiplier - 1; // x  //Math.Sin((AnimationStep / 4 * 360).ToRadians()) * 3;
+                double targetX = MathHelper.Clamp(3 - Math.Cos((step / 4 * 360).ToRadians()) * 2f, float.MinValue, 2.5f) + 1 - (crouch ? 2 : 0); // y  //Math.Cos((AnimationStep / 4 * 360).ToRadians()) * 3;
+                if (Animation == Animation.Turn)
+                {
+                    targetY = -1;
+                    targetX = MathHelper.Clamp(Math.Sin((step / 4 * 360).ToRadians()), double.MinValue, 0) * 1.5f + 3;
+                }
+
+                Log(targetY, targetX);
+                double distance = Math.Sqrt(
+                        Math.Pow(targetX - 0, 2) +
+                        Math.Pow(targetY - 0, 2)
+                );
+
+                double thighLength = 2.5f;
+                double calfLength = 2.5f;
+
+                double diameter = Math.Atan(targetY / targetX);
+                double leftDiameter = Math.Acos(
+                    (Math.Pow(thighLength, 2) + Math.Pow(distance, 2) - Math.Pow(calfLength, 2))
+                    /
+                    (2 * thighLength * distance)
+                );
+                double hipAngle = diameter - leftDiameter;
+
+                double diameter2 = Math.Acos(
+                    (Math.Pow(thighLength, 2) + Math.Pow(calfLength, 2) - Math.Pow(distance, 2))
+                    /
+                    (2 * thighLength * calfLength)
+                );
+                double kneeAngle = Math.PI - diameter2;
+
+                double footDeg =
+                    (180 - hipAngle.ToDegrees() - kneeAngle.ToDegrees());
+
+                return new LegAngles() { 
+                    HipDegrees = hipAngle.ToDegrees(),
+                    KneeDegrees = kneeAngle.ToDegrees(),
+                    FeetDegrees = footDeg
+                };
+                /*double hipDeg =
                     (!crouch ? -60 : -70) + Math.Sin(step / 4 * Math.PI * 2) * 15d * (crouch ? .5d : 1d);
                 double kneeDeg =
                     hipDeg - Math.Cos(step / 4 * Math.PI * 2) * 20d * (crouch ? .5d : 1d) - (!crouch ? 30d : 40d);
                 double footDeg =
                     (kneeDeg - hipDeg);
-                return new double[] { hipDeg, kneeDeg, footDeg };
+                return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
-            public override void Update(double delta)
+            public override void Update(double forwardsDelta, double delta)
             {
-                base.Update(delta);
-                Log($"Step: {AnimationStep}");
+                base.Update(forwardsDelta, delta);
+                Log($"Step: {AnimationStep} {Animation} {delta}");
 
-                double[] leftAngles, rightAngles;
+                LegAngles leftAngles, rightAngles;
                 switch (Animation)
                 {
                     default:
                     case Animation.Crouch:
                     case Animation.Idle:
                         AnimationWaitTime = 0;
-                        AnimationStep = 0;
-                        leftAngles = CalculateAngles(0);
-                        rightAngles = CalculateAngles(0);
+                        AnimationStep = 2;
+                        leftAngles = CalculateAngles(2);
+                        rightAngles = CalculateAngles(2);
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                         {
                             lg.Enabled = true;
-                            lg.AutoLock = true;
+                            lg.AutoLock = false;
+                            lg.Unlock();
                         }
+                        break;
+                    case Animation.CrouchTurn:
+                    case Animation.Turn:
+                        leftAngles = CalculateAngles(AnimationStep);
+                        OffsetLegs = true;
+                        rightAngles = CalculateAngles(AnimationStepOffset);
                         break;
                     case Animation.CrouchWalk:
                     case Animation.Walk:
                         if (AnimationWaitTime == 0)
-                            AnimationStep = 0d;
-                        AnimationWaitTime += delta * Configuration.AnimationSpeed;
-                        if (Math.Abs(AnimationWaitTime) <= 3f)
+                            AnimationStep = 2.5d;
+                        AnimationWaitTime += forwardsDelta * Configuration.AnimationSpeed;
+                        double absWaitTime = Math.Abs(AnimationWaitTime);
+                        if (absWaitTime < 1f)
                         {
                             foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                             {
-                                lg.Enabled = false;
+                                lg.Enabled = true;
                                 lg.AutoLock = true;
                             }
-                            leftAngles = CalculateAngles(-AnimationWaitTime);
-                            rightAngles = CalculateAngles(-AnimationWaitTime);
+                            leftAngles = CalculateAngles(AnimationWaitTime + 2f);
+                            rightAngles = CalculateAngles(AnimationWaitTime + 2f);
+                            break;
+                        }
+                        else if (absWaitTime <= 2.3f)
+                        {
+                            leftAngles = CalculateAngles(AnimationStep);
+                            rightAngles = CalculateAngles(3f * (AnimationWaitTime / Math.Abs(AnimationWaitTime)));
                             break;
                         }
                         // else
@@ -85,62 +143,32 @@ namespace IngameScript
 
                         bool leftGears = AnimationStep < 3f && AnimationStep > 1f;
                         foreach (IMyLandingGear lg in LeftGears)
-                            lg.Enabled = leftGears;
+                        {
+                            if (!leftGears)
+                                lg.Unlock();
+                            lg.Enabled = true;
+                            lg.AutoLock = true;
+                        }
 
                         foreach (IMyLandingGear lg in RightGears)
-                            lg.Enabled = !leftGears;
+                        {
+                            if (leftGears)
+                                lg.Unlock();
+                            lg.Enabled = true;
+                            lg.AutoLock = true;
+                        }
                         break;
                 }
 
-                Log($"{leftAngles[0]};{leftAngles[1]};{leftAngles[2]}");
-                Log($"{rightAngles[0]};{rightAngles[1]};{rightAngles[2]}");
-                SetAngles(leftAngles[0], leftAngles[1], leftAngles[2], rightAngles[0], rightAngles[1], -rightAngles[2]);
-                /*double step = AnimationStep; //+ 2 % 4;
-
-                double hipMultiplifer = InvertHips ? -1d : 1d;
-                double kneesMultiplier = InvertKnees ? -1d : 1d;
-                double feetMultiplier = InvertFeet ? -1d : 1d;
-
-                double hipAngleRad = HipStator.Angle;
-                double hipAngleDeg = hipAngleRad.ToDegrees();
-                double kneeAngleRad = KneeStator.Angle;
-                double kneeAngleDeg = kneeAngleRad.ToDegrees();
-                double footAngleRad = FootStator.Angle;
-                double footAngleDeg = footAngleRad.ToDegrees();
-
-                double sin = Math.Sin(MathHelper.ToRadians(step / 8 * 360));
-                double sin2 = Math.Sin(MathHelper.ToRadians(step / 4 * 360));
-                double cos = Math.Cos(MathHelper.ToRadians(step / 4 * 360));
-
-                double hipTargetRad = (
-                    -60 + Math.Sin(step / 4 * Math.PI * 2) * 15
-                ).ToRadians();
-                double kneeTargetRad = hipTargetRad - (
-                    Math.Cos(step / 4 * Math.PI * 2) * 20
-                ).ToRadians() - (30d).ToRadians();
-
-                double hipTargetDeg = (hipTargetRad.ToDegrees() * hipMultiplifer);
-                double kneeTargetDeg = (kneeTargetRad.ToDegrees() * kneesMultiplier * hipMultiplifer);
-                double footTargetDeg = ((kneeAngleDeg - hipAngleDeg) * (double)feetMultiplier);
-
-
-                hipTargetDeg = hipTargetDeg.AbsoluteDegrees(); // for rotors
-                kneeTargetDeg = kneeTargetDeg.AbsoluteDegrees(); // for rotors
-
-                double hipTargetRPM = MathHelper.Clamp(hipTargetDeg - hipAngleDeg - HipOffset - 0, -MaxRPM, MaxRPM);
-                double kneeTargetRPM = MathHelper.Clamp(kneeTargetDeg - kneeAngleDeg - KneeOffset, -MaxRPM, MaxRPM);
-                double footTargetRPM = MathHelper.Clamp(footTargetDeg - footAngleDeg - FootOffset, -MaxRPM, MaxRPM);
-
-                debug?.WriteText($"\n{Math.Sin(MathHelper.ToRadians(AnimationStep / 8 * 360))}", true);
-                debug?.WriteText($"\n{AnimationStep};{step}", true);
-                debug?.WriteText($"\n{step};{hipTargetRPM};{kneeTargetRPM}", true);
-
-                debug?.WriteText($"\n{HipStator.CustomName}: {hipTargetDeg}/{hipAngleDeg}; rotating {hipTargetRPM}", true);
-                debug?.WriteText($"\n{KneeStator.CustomName}: {kneeTargetDeg}/{kneeAngleDeg}; rotating {kneeTargetRPM}", true);
-
-                HipStator.TargetVelocityRPM = (float)hipTargetRPM;
-                KneeStator.TargetVelocityRPM = (float)kneeTargetRPM;
-                FootStator.TargetVelocityRPM = (float)footTargetRPM;*/
+                Log(rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
+                SetAngles(
+                    leftAngles.HipDegrees,
+                    leftAngles.KneeDegrees,
+                    leftAngles.FeetDegrees,
+                    rightAngles.HipDegrees,
+                    rightAngles.KneeDegrees,
+                    -rightAngles.FeetDegrees
+                );
             }
         }
     }

@@ -33,15 +33,16 @@ namespace IngameScript
 
         // - Blocks
 
-        string CockpitName = "auto"; // auto will find the main cockpit
-        string ReferenceName = "auto"; // auto will find a main remote
+        // Obsolete, finds the main cockpit/RC
+        // string CockpitName = "auto"; // auto will find the main cockpit
+        // string RemoteControlName = "auto"; // auto will find a main remote control
 
         string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block!
         string StatusLCDName = "Mech Status"; // based on the Name of the block!
 
-        bool UseCockpitLCDs = false; // should cockpits show the leds instead?
-        int IntegrityLEDNumber = 0; // starting at zero, if the cockpit has more than one screen you can change it here
-        int StatusLEDNumber = 0;
+        bool UseCockpitLCDs     = true; // should cockpits show the leds instead?
+        int IntegrityLEDNumber  = 2; // starting at one, if the cockpit has more than one screen you can change it here
+        int StatusLEDNumber     = 3; // set to zero to disable
 
         // - Joints
 
@@ -63,6 +64,16 @@ namespace IngameScript
 
         static float WalkCycleSpeed = 3f;
 
+        // - Gyroscopes
+
+        static bool GyroscopeSteering = true; // if we should change the override of gyroscopes to turn (yaw)
+        static string GyroscopeNames = "Mech Steering"; // the name of the gyroscopes
+        static bool GyroscopesInverted = false; // should invert the yaw
+        static bool GyroscopesDisableOverride = false; // when not turning, should we turn off override?
+
+        static bool GyroscopeStabilization = true; // if we should use gyroscopes to limit roll/pitch
+        static string GyroscopeStablizationNames = "Mech Stablization";
+
         // -- Debug -- \\
 
         string DebugLCD = "debug";
@@ -73,14 +84,13 @@ namespace IngameScript
 
         // Constants //
 
+        public static Program Singleton;
+
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
         public const double DefaultFeetOffsets = 0d;
 
         private const UpdateFrequency RunFrequency = UpdateFrequency.Update1;
-
-        // Regex: HR5+ turns into [h, r, 5, +], HL turns into [h, l, null, null], HLeft5+ turns into [h, left, 5, +]
-        private static readonly System.Text.RegularExpressions.Regex namePattern = new System.Text.RegularExpressions.Regex(@"^([^lLrR]*)([lr]{1}|left{1}|right{1})([0-9]+)?([-+]{1})?$");
 
         // Default Joint Configuration //
 
@@ -94,14 +104,20 @@ namespace IngameScript
         public static IMyTextPanel debug = null;
         public static IMyTextPanel debug2 = null;
 
+        public static List<LegGroup> Legs = new List<LegGroup>();
+
+        List<InvalidatableSurfaceRenderer> integrityRenderers = new List<InvalidatableSurfaceRenderer>();
+        List<InvalidatableSurfaceRenderer> statusRenderers = new List<InvalidatableSurfaceRenderer>();
+
+        List<IMyGyro> steeringGyros = new List<IMyGyro>();
+        List<Joint> torsoTwistStators = new List<Joint>();
         List<IMyShipController> cockpits = new List<IMyShipController>();
-        private List<LegGroup> legs = new List<LegGroup>();
         private bool crouched = false;
         private bool crouchOverride = false; // argument crouch
 
         Vector3 movement = Vector3.Zero;
 
-        private static void Log(params string[] messages)
+        private static void Log(params object[] messages)
         {
             string message = string.Join(" ", messages);
             if (debug == null)
@@ -109,125 +125,7 @@ namespace IngameScript
             else
                 debug.WriteText(message + "\n", true);
         }
-
-        private LegGroup CreateLegFromType(byte type)
-        {
-            switch (type)
-            {
-                case 0:
-                    return new ChickenWalkerLegGroup();
-                default:
-                    throw new Exception("Leg type not implemented!");
-            }
-        }
-
-        private System.Text.RegularExpressions.Match MatchName(string name)
-        {
-            foreach (string segment in name.Split(' '))
-            {
-                var match = namePattern.Match(segment.ToLower());
-                if (match.Success)
-                    return match;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// This checks a stator and sees if it should add it to the lists of a <see cref="LegGroup"/>
-        /// <br />
-        /// It, Is, NIGHTMARE FUEL
-        /// </summary>
-        /// <param name="stator"></param>
-        /// <param name="pattern"></param>
-        /// <param name="lastLegs"></param>
-        /// <param name="currentLegs"></param>
-        /// <param name="createLegAnyway"></param>
-        /// <returns></returns>
-        private bool CheckStator(IMyMotorStator stator, ref List<LegGroup> lastLegs, ref List<LegGroup> currentLegs, bool createLegAnyway = false)
-        {
-            var match = MatchName(stator.CustomName);
-            if (match == null || match.Groups[1].Value.Length <= 0 | match.Groups[2].Value.Length <= 0)
-                return false; // invalid
-            int id;
-            int.TryParse(match.Groups[3].Value, out id);
-            LegGroup lastLeg = lastLegs.IsValidIndex(id) ? lastLegs[id] : null;
-            LegConfiguration? lastConfig = lastLeg?.Configuration;
-            LegGroup currentLeg = currentLegs.IsValidIndex(id) ? currentLegs[id] : null;
-
-            if (currentLeg == null)
-            {
-                if (lastConfig.HasValue && lastConfig.Value.HasChanged(stator.CustomData))
-                {
-                    LegConfiguration? configuration = LegConfiguration.Parse(stator.CustomData);
-                    if (configuration.HasValue)
-                    {
-                        currentLeg = CreateLegFromType(configuration.Value.LegType);
-                        currentLeg.Configuration = configuration.Value;
-                        currentLegs.Insert(id, currentLeg);
-                    }
-                }
-                if (currentLeg == null && createLegAnyway)
-                {
-                    LegConfiguration configuration = LegConfiguration.DEFAULT;
-                    currentLeg = CreateLegFromType(configuration.LegType);
-                    currentLeg.Configuration = configuration;
-                    currentLegs.Insert(id, currentLeg);
-                }
-                else if (currentLeg == null)
-                    return true; // check later, there is a possibility of another joint having a valid config
-            }
-
-            currentLeg.Configuration.AnimationSpeed = WalkCycleSpeed;
-            stator.CustomData = currentLeg.Configuration.ToCustomDataString();
-
-            bool isLeft = false;
-            switch (match.Groups[2].Value)
-            {
-                case "l":
-                case "left":
-                    isLeft = true;
-                    break;
-                    // no need to check right since it's infered
-                    // and the regex only searched for l, left, r, and right; so it can only ever be r and right anyway
-            }
-
-            Joint joint = new Joint(stator, new JointConfiguration()
-            {
-                Inversed = match.Groups[4].Value.Equals("-"),
-                Offset = 0 // parse in INI?
-            });
-
-            switch (match.Groups[1].Value)
-            {
-                case "h":
-                    //case "hip":
-                    if (isLeft)
-                        currentLeg.LeftHipStators.Add(joint);
-                    else
-                        currentLeg.RightHipStators.Add(joint);
-                    break;
-                case "k":
-                    //case "knee":
-                    if (isLeft)
-                        currentLeg.LeftKneeStators.Add(joint);
-                    else
-                        currentLeg.RightKneeStators.Add(joint);
-                    break;
-                case "f":
-                    //case "fp":
-                    //case "foot":
-                    //case "feet":
-                    if (isLeft)
-                        currentLeg.LeftFootStators.Add(joint);
-                    else
-                        currentLeg.RightFootStators.Add(joint);
-                    break;
-                default:
-                    Log($"Unknown joint type \"{match.Groups[0].Value}\"");
-                    break;
-            }
-            return false; // do not check, it's good!
-        }
+        
 
         /// <summary>
         /// Gets the blocks required for operation
@@ -242,135 +140,52 @@ namespace IngameScript
 
             // Core blocks
 
-            string cockpitSpecifier = CockpitName;//GetConfigurationValue("Mech Core", "Cockpit").ToString();
-            string referenceSpecifier = ReferenceName;//GetConfigurationValue("Mech Core", "Reference").ToString();
-            Log("Looking for cockpit with specifier", cockpitSpecifier);
-            Log("Looking for reference rc with specifier", referenceSpecifier);
+            //string cockpitSpecifier = CockpitName;//GetConfigurationValue("Mech Core", "Cockpit").ToString();
+            //string referenceSpecifier = RemoteControlName;//GetConfigurationValue("Mech Core", "Reference").ToString();
+            //Log("Looking for cockpit with specifier", cockpitSpecifier);
+            //Log("Looking for reference rc with specifier", referenceSpecifier);
 
             // Get all cockpits if they are the main cockpit (or the main remote control)
             GridTerminalSystem.GetBlocksOfType(cockpits, (controller) => (controller is IMyRemoteControl) ? (controller as IMyRemoteControl).GetProperty("MainRemoteControl").AsBool().GetValue(controller) : controller.IsMainCockpit);
+            if (GyroscopeSteering)
+                GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
 
             Log($"{(cockpits.Count > 0 ? "Found" : "Didn't Find")} cockpit(s)");
 
-            List<IMyMotorStator> stators = new List<IMyMotorStator>();
-            GridTerminalSystem.GetBlocksOfType(stators);
-
-            List<LegGroup> lastLegs = legs;
-            List<LegGroup> currentLegs = new List<LegGroup>();
-            legs.Clear();
-
-            List<IMyMotorStator> recheckLater = new List<IMyMotorStator>();
-            foreach (IMyMotorStator stator in stators)
-            {
-                Log($"Checking stator {stator.CustomName}");
-                if (CheckStator(stator, ref lastLegs, ref currentLegs))
+            integrityRenderers.Clear();
+            statusRenderers.Clear();
+            if (UseCockpitLCDs)
+                foreach (IMyShipController controller in cockpits)
                 {
-                    recheckLater.Add(stator);
-                    Log($"Checking {stator.CustomName} later");
-                }
-                else
-                    Log($"{stator.CustomName} added to leg");
-            }
-
-            foreach (IMyMotorStator stator in recheckLater)
-            {
-                Log($"Rechecking stator {stator.CustomName}");
-                CheckStator(stator, ref lastLegs, ref currentLegs, true);
-            }
-
-            List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMyLandingGear>(blocks);
-            foreach (IMyTerminalBlock block in blocks)
-            {
-                var match = MatchName(block.CustomName);
-                if (match == null || match.Groups[1].Value.Length <= 0 || match.Groups[2].Value.Length <= 0)
-                    continue;
-                int id;
-                int.TryParse(match.Groups[3].Value, out id);
-                LegGroup currentLeg = currentLegs.IsValidIndex(id) ? currentLegs[id] : null;
-                if (currentLeg == null)
-                    continue; // no leg was created, no point for extra parts if not actual leg exists :p
-
-                bool isLeft = false;
-                switch (match.Groups[2].Value)
-                {
-                    case "l":
-                    case "left":
-                        isLeft = true;
-                        break;
-                        // no need to check right since it's infered
-                        // and the regex only searched for l, left, r, and right; so it can only ever be r and right anyway
+                    if (controller is IMyTextSurfaceProvider)
+                    {
+                        IMyTextSurface integrity = (controller as IMyTextSurfaceProvider).GetSurface(IntegrityLEDNumber - 1);
+                        IMyTextSurface status = (controller as IMyTextSurfaceProvider).GetSurface(StatusLEDNumber - 1);
+                        if (integrity != null)
+                            integrityRenderers.Add(new IntegrityRenderer(integrity));
+                        if (status != null)
+                            statusRenderers.Add(new StatusRenderer(status));
+                    }
                 }
 
-                switch (match.Groups[1].Value)
+            torsoTwistStators.Clear();
+            foreach (FetchedBlock block in BlockFinder.GetBlocksOfType<IMyMotorStator>(motor => BlockFetcher.ParseBlock(motor).HasValue).Select(motor => BlockFetcher.ParseBlock(motor)))
+            {
+                Log(block.Type);
+                switch (block.Type)
                 {
-                    case "mg":
-                    case "lg":
-                        if (block is IMyLandingGear)
-                            if (isLeft)
-                                currentLeg.LeftGears.Add(block as IMyLandingGear);
-                            else
-                                currentLeg.RightGears.Add(block as IMyLandingGear);
+                    case BlockType.TorsoTwist:
+                        torsoTwistStators.Add(new Joint(block.Block as IMyMotorStator, new JointConfiguration()
+                        {
+                            Inversed = block.Inverted,
+                            Offset = 0
+                        }));
                         break;
                 }
             }
 
-            legs = currentLegs;
-
-            /*// Legs
-            legs.Clear();
-            List<IMyMotorStator> motors = new List<IMyMotorStator>();
-            for (int i = 0; i < LegGroups.Length; i++)
-            {
-                string name = LegGroups[i];
-                float offset = LegOffsets[i];
-
-                IMyBlockGroup legGroup = GridTerminalSystem.GetBlockGroupWithName(name);
-                if (legGroup == null)
-                {
-                    Echo("No group for leg", name);
-                    continue;
-                }
-                IMyMotorStator hip = null;
-                IMyMotorStator knee = null;
-                IMyMotorStator foot = null;
-
-                legGroup.GetBlocksOfType<IMyMotorStator>(motors);
-                foreach (IMyMotorStator block in motors)
-                {
-                    string cname = block.CustomName;
-                    if (cname.ToLower().Contains("hip"))
-                        hip = block;
-                    else if (cname.ToLower().Contains("knee"))
-                        knee = block;
-                    else if (cname.ToLower().Contains("foot"))
-                        foot = block;
-                }
-
-                if (hip == null)
-                    Echo(name, "is missing a hip rotor");
-                if (knee == null)
-                    Echo(name, "is missing a knee hinge");
-                if (foot == null)
-                    Echo(name, "is missing a foot hinge");
-
-                if (hip == null || knee == null || foot == null)
-                    continue; // don't create the leg, we are missing features!
-
-                Leg leg = new Leg(hip, knee, foot);
-
-                leg.InvertHips = InvertHips ^ leg.InvertHips;
-                leg.InvertKnees = InvertKnees ^ leg.InvertKnees;
-                leg.InvertFeet = InvertFeet ^ leg.InvertFeet;
-
-                leg.HipOffset = HipOffset;
-                leg.KneeOffset = KneeOffset;
-                leg.FootOffset = FootOffset;
-
-                leg.Offset = offset * 4;
-
-                legs.Add(leg);
-            }*/
+            // Leg Groups
+            BlockFetcher.GetBlocks();
         }
 
         /*/// <summary> // I'm keeping this for sentimental value, it will get removed in the workshop publish from minification anyway
@@ -415,6 +230,7 @@ namespace IngameScript
         public Program()
         {
             // Initialize subclasses
+            Singleton = this;
             LegGroup.Program = this;
 
             // Get blocks
@@ -447,7 +263,7 @@ namespace IngameScript
 
             // Detailed Info
             Echo("Advanced Walker Script");
-            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")}");
+            Echo($"{Legs.Count} leg group{(Legs.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last       Tick: {lastRuntime}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
@@ -470,15 +286,45 @@ namespace IngameScript
             if (!updateSource.HasFlag(UpdateType.Update1))
                 return;
 
+            // Screens
+            integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
+            integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
+
             double delta = Runtime.TimeSinceLastRun.TotalSeconds;
 
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
 
             Vector3 moveInput = controller?.MoveIndicator ?? Vector3.Zero;
+            Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is pitch, Y is yaw
+
+            if (GyroscopeSteering)
+            {
+                bool overrideEnabled = !GyroscopesDisableOverride || moveInput.X != 0;
+                foreach (var gyro in steeringGyros)
+                {
+                    if (!overrideEnabled && gyro.GyroOverride)
+                    {
+                        gyro.Yaw = 0;
+                        gyro.GyroOverride = false;
+                    }
+                    else if (overrideEnabled)
+                    {
+                        gyro.GyroOverride = true;
+                        gyro.Yaw = moveInput.X * float.MaxValue * (GyroscopesInverted ? -1 : 1);
+                    }
+                }
+            }
+
+            foreach (var joint in torsoTwistStators)
+            {
+                joint.Stator.TargetVelocityRPM = rotationInput.Y * (float)joint.Configuration.InversedMultiplier;
+            }
 
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
+            Log("length:", torsoTwistStators.Count);
 
+            bool turning = moveInput.X != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
             // TODO: use crouched / crouching
 
@@ -493,22 +339,20 @@ namespace IngameScript
                 movement.Z = 0;
 
             Log(moveInput.ToString());
+            Log(rotationInput.ToString());
             Log(movement.ToString());
 
             delta *= -movement.Z; // negative because -Z is forwards!
 
-            if (Math.Abs(movement.Z) == 0)
-            {
-                delta = 0;
-                foreach (LegGroup leg in legs)
-                    leg.Animation = !crouched ? Animation.Idle : Animation.Crouch;
-            }
+            if (Math.Abs(movement.Z) <= 0.035)
+                foreach (LegGroup leg in Legs)
+                    leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else
-                foreach (LegGroup leg in legs)
+                foreach (LegGroup leg in Legs)
                     leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
 
-            foreach (LegGroup leg in legs)
-                leg.Update(delta);
+            foreach (LegGroup leg in Legs)
+                leg.Update(delta, Runtime.TimeSinceLastRun.TotalSeconds);
         }
     }
 }

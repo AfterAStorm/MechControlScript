@@ -40,6 +40,7 @@ namespace IngameScript
              * HipsInverted=y
              * KneesInverted=y
              * FeetInverted=y
+             * StepLengthMultiplier=1
              * 
              * [Advanced]
              * WalkCycleSpeed=1
@@ -48,7 +49,9 @@ namespace IngameScript
 
             #region # - Properties
 
-            public static readonly LegConfiguration DEFAULT = Parse("").Value;
+            public static readonly LegConfiguration DEFAULT = Parse("");
+
+            public int Id;
 
             private static MyIni ini;
             private string configurationString;
@@ -57,7 +60,12 @@ namespace IngameScript
             public bool HipsInverted, KneesInverted, FeetInverted;
             public double HipOffsets, KneeOffsets, FootOffsets;
 
-            public double AnimationSpeed;
+            public double StepLengthMultiplier;
+
+            public double AnimationSpeed => WalkCycleSpeed;
+
+            private int defaultValue;
+            public bool Default => defaultValue <= 0;
 
             #endregion
 
@@ -70,6 +78,7 @@ namespace IngameScript
 
             public string ToCustomDataString()
             {
+                ini.Clear();
                 ini.Set("Leg", "LegType", LegType);
                 ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t4 = Digitigrade");
 
@@ -83,16 +92,15 @@ namespace IngameScript
                 ini.Set("Leg", "KneesInverted", KneesInverted);
                 ini.Set("Leg", "FeetInverted", FeetInverted);
 
-                ini.SetSectionComment("Leg", "These are all the leg group settings associated with this joint, changing these will change all the other joints");
+                ini.Set("Leg", "StepLengthMultiplier", StepLengthMultiplier);
+                ini.SetComment("Leg", "StepLengthMultiplier", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
+
+                ini.SetSectionComment("Leg", "These are all the leg group settings associated with this leg group,\nchanging these will change all the other joints in the same group");
                 return ini.ToString();
             }
 
-            public static LegConfiguration? Parse(string iniData)
+            public static LegConfiguration Parse(MyIni ini)
             {
-                ini = ini ?? new MyIni();
-                bool parsed = ini.TryParse(iniData);
-                if (!parsed)
-                    return null;
                 LegConfiguration config = new LegConfiguration
                 {
                     LegType = ini.Get("Leg", "LegType").ToByte(),
@@ -104,9 +112,28 @@ namespace IngameScript
                     HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
                     KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
                     FeetInverted = ini.Get("Leg", "FeetInverted").ToBoolean(),
+
+                    StepLengthMultiplier = ini.Get("Leg", "StepLengthMultiplier").ToDouble(1),
+
+                    defaultValue = 1
                 };
                 config.configurationString = config.ToCustomDataString();
                 return config;
+            }
+
+            public static LegConfiguration Parse(string iniData)
+            {
+                ini = ini ?? new MyIni();
+                ini.Clear();
+                bool parsed = ini.TryParse(iniData);
+                //if (!parsed)
+                //    return null;
+                return Parse(ini);
+            }
+
+            public static LegConfiguration Create()
+            {
+                return Parse("");
             }
 
             #endregion

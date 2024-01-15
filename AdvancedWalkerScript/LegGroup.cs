@@ -22,6 +22,17 @@ namespace IngameScript
 {
     partial class Program
     {
+        public struct LegAngles
+        {
+            public double HipDegrees;
+            public double KneeDegrees;
+            public double FeetDegrees;
+
+            public double HipRadians => HipDegrees.ToRadians();
+            public double KneeRadians => HipDegrees.ToRadians();
+            public double FeetRadians => HipDegrees.ToRadians();
+        }
+
         public class LegGroup
         {
 
@@ -78,24 +89,24 @@ namespace IngameScript
             protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees)
             {
                 // The code documents itself!
-                SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier).AbsoluteDegrees(),      (rightHipDegrees * HipInversedMultiplier).AbsoluteDegrees(),    Configuration.HipOffsets);
-                SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier).AbsoluteDegrees(),     (rightKneeDegrees * KneeInversedMultiplier).AbsoluteDegrees(),   Configuration.KneeOffsets);
+                SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),    Configuration.HipOffsets);
+                SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets);
                 SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
             }
 
-            protected virtual double[] CalculateAngles(double step)
+            protected virtual LegAngles CalculateAngles(double step)
             {
                 throw new Exception("Not Implemented");
             }
 
-            public virtual void Update(double delta)
+            public virtual void Update(double forwardsDelta, double delta)
             {
                 // Update multipliers, we should probably isolate this in a "Initialize" method or something
                 HipInversedMultiplier = Configuration.HipsInverted ? -1 : 1;
                 KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
                 FeetInversedMultiplier = Configuration.FeetInverted ? -1 : 1;
 
-                OffsetLegs = delta != 0;
+                OffsetLegs = forwardsDelta != 0;
 
                 // Update animation step
                 AnimationStep += delta * Configuration.AnimationSpeed;

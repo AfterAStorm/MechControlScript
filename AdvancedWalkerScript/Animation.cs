@@ -26,6 +26,8 @@ namespace IngameScript
         {
             Idle,
             Walk,
+            Turn,
+            CrouchTurn,
             Crouch,
             CrouchWalk,
             Strafe // not final
