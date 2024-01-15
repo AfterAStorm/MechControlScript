@@ -123,7 +123,7 @@ namespace IngameScript
         {
             string message = string.Join(" ", messages);
             if (debug == null)
-                LegGroup.Program.Echo(message);
+                Singleton.Echo(message);
             else
                 debug.WriteText(message + "\n", true);
         }
