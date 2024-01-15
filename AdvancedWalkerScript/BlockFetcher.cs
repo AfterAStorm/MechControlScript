@@ -258,7 +258,7 @@ namespace IngameScript
                     }
 
                     // doesn't have a valid ini so, it will just be defaults
-                    if (fetched.Ini == null)
+                    if (fetched.Ini == null || !fetched.Ini.ContainsSection("Leg"))
                     {
                         reiterate.Add(fetched);
                         continue;
