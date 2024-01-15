@@ -33,9 +33,8 @@ namespace IngameScript
 
         // - Blocks
 
-        // Obsolete, finds the main cockpit/RC
-        // string CockpitName = "auto"; // auto will find the main cockpit
-        // string RemoteControlName = "auto"; // auto will find a main remote control
+        string CockpitName = "auto"; // auto will find the main cockpit; optional (for manually controlling)
+        string RemoteControlName = "auto"; // auto will find a main remote control; optional (for remote controlling)
 
         string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block!
         string StatusLCDName = "Mech Status"; // based on the Name of the block!
@@ -148,8 +147,14 @@ namespace IngameScript
             //Log("Looking for cockpit with specifier", cockpitSpecifier);
             //Log("Looking for reference rc with specifier", referenceSpecifier);
 
-            // Get all cockpits if they are the main cockpit (or the main remote control)
-            GridTerminalSystem.GetBlocksOfType(cockpits, (controller) => (controller is IMyRemoteControl) ? (controller as IMyRemoteControl).GetProperty("MainRemoteControl").AsBool().GetValue(controller) : controller.IsMainCockpit);
+            // Get all cockpits if they are the main cockpit (or the main remote control) // MainRemoteControl
+            GridTerminalSystem.GetBlocksOfType(cockpits, c =>
+                c is IMyRemoteControl
+                ?
+                (RemoteControlName.Equals("auto") ? c.GetProperty("MainRemoteControl").AsBool().GetValue(c) : c.CustomName.Equals(RemoteControlName))
+                :
+                (CockpitName.Equals("auto") ? c.IsMainCockpit : c.CustomName.Equals(CockpitName))
+            );
             if (GyroscopeSteering)
                 GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
 
