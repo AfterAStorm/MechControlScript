@@ -90,8 +90,6 @@ namespace IngameScript
         public const double DefaultKneeOffsets = 0d;
         public const double DefaultFeetOffsets = 0d;
 
-        private const UpdateFrequency RunFrequency = UpdateFrequency.Update1;
-
         // Default Joint Configuration //
 
         // Diagnostics //
@@ -237,7 +235,7 @@ namespace IngameScript
             GetBlocks();
 
             // Setup loop
-            Runtime.UpdateFrequency = RunFrequency;
+            Runtime.UpdateFrequency = UpdateFrequency.Update1;
         }
 
         /// <summary>
