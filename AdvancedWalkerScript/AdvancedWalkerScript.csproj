@@ -39,6 +39,7 @@
   <Import Project="MDK/MDK.paths.props" Condition="exists('MDK/MDK.paths.props')" />
   <ItemGroup>
     <Compile Include="Animation.cs" />
+    <Compile Include="BlockFetcher.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Joint.cs" />
     <Compile Include="LegGroup.cs" />
@@ -55,6 +56,7 @@
     <AdditionalFiles Include="Instructions.readme" />
     <AdditionalFiles Include="thumb.png" />
     <AdditionalFiles Include="MDK\whitelist.cache" />
+    <Compile Include="Rendering\StatusRenderer.cs" />
     <Compile Include="Rendering\IntegrityRenderer.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
