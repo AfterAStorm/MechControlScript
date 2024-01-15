@@ -45,8 +45,8 @@ namespace IngameScript
                         Math.Pow(targetY - 0, 2)
                 );
 
-                double thighLength = 2.5f;
-                double calfLength = 2.5f;
+                double thighLength = Configuration.ThighLength;//2.5f;
+                double calfLength = Configuration.CalfLength;//2.5f;
 
                 double diameter = Math.Atan(targetY / targetX);
                 double leftDiameter = Math.Acos(

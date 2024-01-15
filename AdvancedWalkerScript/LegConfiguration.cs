@@ -40,6 +40,8 @@ namespace IngameScript
              * HipsInverted=y
              * KneesInverted=y
              * FeetInverted=y
+             * ThighLength=2.5
+             * CalfLength=2.5
              * StepLengthMultiplier=1
              * 
              * */
@@ -55,6 +57,8 @@ namespace IngameScript
             public byte LegType;
             public bool HipsInverted, KneesInverted, FeetInverted;
             public double HipOffsets, KneeOffsets, FootOffsets;
+
+            public double ThighLength, CalfLength;
 
             public double StepLengthMultiplier;
 
@@ -103,6 +107,9 @@ namespace IngameScript
                     HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
                     KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
                     FeetInverted = ini.Get("Leg", "FeetInverted").ToBoolean(),
+
+                    ThighLength = ini.Get("Leg", "ThighLength").ToDouble(2.5d),
+                    CalfLength = ini.Get("Leg", "CalfLength").ToDouble(2.5d),
 
                     StepLengthMultiplier = ini.Get("Leg", "StepLengthMultiplier").ToDouble(1),
 
