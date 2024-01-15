@@ -87,6 +87,10 @@ namespace IngameScript
                 ini.Set("Leg", "KneesInverted", KneesInverted);
                 ini.Set("Leg", "FeetInverted", FeetInverted);
 
+                ini.Set("Leg", "ThighLength", ThighLength);
+                ini.Set("Leg", "CalfLength", CalfLength);
+                ini.SetComment("Leg", "ThighLength", "");
+
                 ini.Set("Leg", "StepLengthMultiplier", StepLengthMultiplier);
                 ini.SetComment("Leg", "StepLengthMultiplier", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
 

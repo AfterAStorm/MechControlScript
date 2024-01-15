@@ -269,7 +269,6 @@ namespace IngameScript
             Echo($"");
             Echo($"Last       Tick: {lastRuntime}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
-            //Echo($"{string.Join(", ", averageRuntimes)}");
 
             // Handle arguments
             if (argument != null)
