@@ -98,8 +98,7 @@ namespace IngameScript
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                         {
                             lg.Enabled = true;
-                            lg.AutoLock = false;
-                            lg.Unlock();
+                            lg.AutoLock = true;
                         }
                         break;
                     case Animation.CrouchTurn:
@@ -119,7 +118,8 @@ namespace IngameScript
                             foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                             {
                                 lg.Enabled = true;
-                                lg.AutoLock = true;
+                                lg.AutoLock = false;
+                                lg.Unlock();
                             }
                             leftAngles = CalculateAngles(AnimationWaitTime + 2f);
                             rightAngles = CalculateAngles(AnimationWaitTime + 2f);
