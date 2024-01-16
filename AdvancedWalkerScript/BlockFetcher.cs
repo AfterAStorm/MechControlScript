@@ -70,7 +70,7 @@ namespace IngameScript
             public static List<T> GetBlocksOfType<T>(Func<T, bool> predicate = null) where T : class
             {
                 List<T> blocks = new List<T>();
-                Singleton.GridTerminalSystem.GetBlocksOfType(blocks, predicate);
+                Singleton.GridTerminalSystem.GetBlocksOfType(blocks, block => (block as IMyTerminalBlock).IsSameConstructAs(Singleton.Me) && (predicate == null || predicate(block)));
                 return blocks;
             }
         }

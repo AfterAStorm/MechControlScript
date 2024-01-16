@@ -142,11 +142,13 @@ namespace IngameScript
 
             // Get all cockpits if they are the main cockpit (or the main remote control) // MainRemoteControl
             GridTerminalSystem.GetBlocksOfType(cockpits, c =>
-                c is IMyRemoteControl
+                c.IsSameConstructAs(Me)
+                &&
+                (c is IMyRemoteControl
                 ?
                 (RemoteControlName.Equals("auto") ? c.GetProperty("MainRemoteControl").AsBool().GetValue(c) : c.CustomName.Equals(RemoteControlName))
                 :
-                (CockpitName.Equals("auto") ? c.IsMainCockpit : c.CustomName.Equals(CockpitName))
+                (CockpitName.Equals("auto") ? c.IsMainCockpit : c.CustomName.Equals(CockpitName)))
             );
             if (GyroscopeSteering)
                 GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
