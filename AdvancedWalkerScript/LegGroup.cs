@@ -31,6 +31,15 @@ namespace IngameScript
             public double HipRadians => HipDegrees.ToRadians();
             public double KneeRadians => HipDegrees.ToRadians();
             public double FeetRadians => HipDegrees.ToRadians();
+
+            public LegAngles(double hip, double knee, double feet)
+            {
+                HipDegrees = hip;
+                KneeDegrees = knee;
+                FeetDegrees = feet;
+            }
+
+            public static LegAngles operator *(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees * right.HipDegrees, left.KneeDegrees * right.KneeDegrees, left.FeetDegrees * right.FeetDegrees);
         }
 
         public class LegGroup
@@ -74,21 +83,52 @@ namespace IngameScript
 
             #region # - Methods
 
+            private void SetJointAngle(Joint joint, double targetAngle, double offset = 0)
+            {
+                double currentAngle = joint.Stator.Angle.ToDegrees();
+                bool isHinge = joint.Stator.BlockDefinition.SubtypeName.Contains("Hinge"); // 0 to 360 vs -90 to 90
+                Log($"Joint {joint.Stator.CustomName}: from {currentAngle} ({currentAngle.To180()}) to {(isHinge ? targetAngle : targetAngle.AbsoluteDegrees())}");
+                if (isHinge)
+                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp(targetAngle.AbsoluteDegrees(true) - currentAngle - offset, -MaxRPM, MaxRPM);
+                else
+                {
+                    double rotation = (targetAngle.AbsoluteDegrees() - offset - currentAngle.AbsoluteDegrees() + 540) % 360 - 180; // thank you https://math.stackexchange.com/a/2898118 :D
+                    float rpm = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
+
+                    Log($" - RPM: {rpm}, rotation: {rotation}");
+                    joint.Stator.TargetVelocityRPM = rpm;
+                }
+            }
+
             private void SetAnglesOf(List<Joint> leftStators, List<Joint> rightStators, double leftAngle, double rightAngle, double offset)
             {
                 // We could split this into ANOTHER method, but i don't believe it's worth it
                 foreach (var motor in leftStators)
-                    motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((leftAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
+                    SetJointAngle(motor, leftAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
+                    //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((leftAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
                 foreach (var motor in rightStators)
-                    motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
+                    SetJointAngle(motor, -rightAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
+                    //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
             }
 
             protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees)
             {
                 // The code documents itself!
-                SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),    Configuration.HipOffsets);
+                SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),     Configuration.HipOffsets);
                 SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets);
                 SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
+            }
+
+            protected virtual void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
+            {
+                SetAngles(
+                    leftAngles.HipDegrees,
+                    leftAngles.KneeDegrees,
+                    leftAngles.FeetDegrees,
+                    rightAngles.HipDegrees,
+                    rightAngles.KneeDegrees,
+                    rightAngles.FeetDegrees
+                );
             }
 
             /// <summary>
@@ -113,7 +153,9 @@ namespace IngameScript
                 OffsetLegs = forwardsDelta != 0;
 
                 // Update animation step
-                AnimationStep += delta * Configuration.AnimationSpeed;
+                double multiplier = forwardsDelta / Math.Abs(forwardsDelta);
+                Log($"mul: {multiplier}");
+                AnimationStep += delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
                 AnimationStep %= 4; // 0 to 3
             }
 
