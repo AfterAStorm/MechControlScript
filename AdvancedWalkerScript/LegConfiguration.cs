@@ -89,7 +89,7 @@ namespace IngameScript
 
                 ini.Set("Leg", "ThighLength", ThighLength);
                 ini.Set("Leg", "CalfLength", CalfLength);
-                ini.SetComment("Leg", "ThighLength", "");
+                ini.SetComment("Leg", "ThighLength", "If set to any number lower than zero (-1 for example), it will automatically get approximate the length");
 
                 ini.Set("Leg", "StepLengthMultiplier", StepLengthMultiplier);
                 ini.SetComment("Leg", "StepLengthMultiplier", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
@@ -102,7 +102,7 @@ namespace IngameScript
             {
                 LegConfiguration config = new LegConfiguration
                 {
-                    LegType = ini.Get("Leg", "LegType").ToByte(),
+                    LegType = ini.Get("Leg", "LegType").ToByte(1),
 
                     HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(DefaultHipOffsets),
                     KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(DefaultKneeOffsets),
