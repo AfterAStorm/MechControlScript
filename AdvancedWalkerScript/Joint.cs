@@ -41,6 +41,9 @@ namespace IngameScript
             public IMyMotorStator Stator;
             public JointConfiguration Configuration;
 
+            public double Minimum => Stator.LowerLimitDeg;
+            public double Maximum => Stator.UpperLimitDeg;
+
             public Joint(IMyMotorStator stator, JointConfiguration? configuration = null)
             {
                 Stator = stator;
