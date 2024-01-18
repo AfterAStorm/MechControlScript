@@ -26,8 +26,9 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-
-        // {{ Source Code and Wiki can be found at https://github.com/AfterAStorm/AdvancedWalkerScript }} //
+        #region mdk preserve
+        // {{ Source Code and Wiki can be found at https://github.com/AfterAStorm/AdvancedWalkerScript }} \\
+        // I'd recommend looking at the wiki for quick setup and differences between other walker scripts \\
 
         // -- Configuration -- \\
 
@@ -45,7 +46,7 @@ namespace IngameScript
 
         // - Mech
 
-        public static float StandingHeight = .95f; // a multiplier applied to some leg types, does what it says on the tin
+        static float StandingHeight = .95f; // a multiplier applied to some leg types, does what it says on the tin
 
         // - Joints
 
@@ -56,12 +57,19 @@ namespace IngameScript
          * 3 = Spideroid
          * 4 = Digitigrade
         */
+        // The default is 1, but can be changed in the CustomData of any joint of the leg group
 
         static float AccelerationMultiplier = 1f; // how fast the mech accelerates, 1f is normal, .5f is half speed, 2f is double speed
         static float DecelerationMultiplier = 1f; //  how fast the mech decelerates, same as above
 
         static float MaxRPM = float.MaxValue; // 60f is the max speed for rotors
         // *Configure motor limits in the blocks themselves!* //
+
+        static double StandingLean = 0d; // the offset of where the foot sits when standing (idling)
+        static double AccelerationLean = 0d; // the offset of where the foot sits when walking
+
+        static float TorsoTwistSensitivity = 1f; // how sensitive the torso twist is, can also change based on the rotor's torque
+        static float TorsoTwistMaxSpeed = 60f; // maximum RPM of the torso twist rotor;
 
         // - Walking
 
@@ -75,29 +83,57 @@ namespace IngameScript
         static bool GyroscopesDisableOverride = false; // when not turning, should we turn off override?
 
         static bool GyroscopeStabilization = true; // if we should use gyroscopes to limit roll/pitch
-        static string GyroscopeStablizationNames = "Mech Stablization";
+        static string GyroscopeStabilizationNames = "Mech Stabilization";
+        static bool GyroscopeStabilizationInverseRoll = false; // if we should inverse roll correction
+        static bool GyroscopeStabilizationInversePitch = false; // if we should inverse pitch correction
 
-        // -- Debug -- \\
+        static double StabilizationRollThreshold = 5d; // if it goes past x degrees it will attempt to return it to between the threshold
+        static double StabilizationPitchThreshold = 10d; // if it goes past x degrees it will attempt to return it to between the threshold
+
+        // - Controls
+
+        /*
+         * Mech Controls
+         * W/S >> Forward/Backward
+         * A/D >> Strafe Left/Right
+         * Q/E >> Turn Left/Right
+         * Mouse >> Torso Twist/Arm Control
+         * 
+         * Reversed Mech Turn Controls
+         * W/S >> (see above)
+         * A/D >> Turn Left/Right
+         * Q/E >> Strafe Left/Right
+         * Mouse >> (see above)
+         * 
+         */
+
+        bool ReverseTurnControls = false; // see above
+
+        // -- Diagnostics -- \\
 
         string DebugLCD = "debug";
+        const int AverageRuntimeSampleSize = 15;
 
         ///////////////// 
-        // Code Script // 
+        // Script Code // 
         ////////////////
 
         // Constants //
+
+        // Change these at your discretion \\
+        // These are script CONSTANTs, not 
+        // OPTIONs
 
         public static Program Singleton;
 
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
         public const double DefaultFeetOffsets = 0d;
-
-        // Default Joint Configuration //
+        #endregion
 
         // Diagnostics //
 
-        double[] averageRuntimes = new double[15];
+        double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
 
         // Variables //
@@ -111,6 +147,7 @@ namespace IngameScript
         List<InvalidatableSurfaceRenderer> statusRenderers = new List<InvalidatableSurfaceRenderer>();
 
         List<IMyGyro> steeringGyros = new List<IMyGyro>();
+        List<IMyGyro> stabilizationGyros = new List<IMyGyro>();
         List<Joint> torsoTwistStators = new List<Joint>();
         List<IMyShipController> cockpits = new List<IMyShipController>();
         private bool crouched = false;
@@ -152,6 +189,8 @@ namespace IngameScript
             );
             if (GyroscopeSteering)
                 GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
+            if (GyroscopeStabilization)
+                GridTerminalSystem.GetBlocksOfType(stabilizationGyros, gyro => gyro.CustomName.Equals(GyroscopeStabilizationNames));
 
             Log($"{(cockpits.Count > 0 ? "Found" : "Didn't Find")} cockpit(s)");
 
@@ -234,7 +273,7 @@ namespace IngameScript
         /// </summary>
         public Program()
         {
-            // Initialize subclasses
+            // Initialize
             Singleton = this;
 
             // Get blocks
@@ -265,8 +304,8 @@ namespace IngameScript
             averageRuntimes[averageRuntimeIndex] = lastRuntime;
             averageRuntimeIndex = (averageRuntimeIndex + 1) % averageRuntimes.Length;
 
-            // Detailed Info
-            Echo("Advanced Walker Script");
+            // Detailed Info - alpha red green blue
+            Echo("[Color=#13ebca00]Advanced Walker Script[/Color]");
             Echo($"{Legs.Count} leg group{(Legs.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last       Tick: {lastRuntime}ms");
@@ -308,17 +347,24 @@ namespace IngameScript
             integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
             integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
 
+            // Get delta
             double delta = Runtime.TimeSinceLastRun.TotalSeconds;
 
+            // Get controllers
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
+            IMyShipController anyController = controller ?? (cockpits.Count > 0 ? cockpits[0] : null);
 
             Vector3 moveInput = Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero) + movementOverride, Vector3.MinusOne, Vector3.One);
-            Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is pitch, Y is yaw
-            float rollInput = controller?.RollIndicator ?? 0f; // X is pitch, Y is yaw
+            Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw
+            float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered)
+
+            debug?.WriteText(""); // clear
+            Log("MAIN LOOP");
 
             if (GyroscopeSteering)
             {
-                bool overrideEnabled = !GyroscopesDisableOverride || moveInput.X != 0;
+                float value = ReverseTurnControls ? rollInput : moveInput.X;
+                bool overrideEnabled = !GyroscopesDisableOverride || value != 0;
                 foreach (var gyro in steeringGyros)
                 {
                     if (!overrideEnabled && gyro.GyroOverride)
@@ -329,18 +375,42 @@ namespace IngameScript
                     else if (overrideEnabled)
                     {
                         gyro.GyroOverride = true;
-                        gyro.Yaw = moveInput.X * float.MaxValue * (GyroscopesInverted ? -1 : 1);
+                        gyro.Yaw = value * float.MaxValue * (GyroscopesInverted ? -1 : 1);
                     }
                 }
             }
 
-            foreach (var joint in torsoTwistStators)
+            if (GyroscopeStabilization)
             {
-                joint.Stator.TargetVelocityRPM = rotationInput.Y * (float)joint.Configuration.InversedMultiplier;
+                // Positive is left, Negative is right
+                // Positive is forward, Negative is backward
+                // -180 to 180 represented as a -1 to 1
+                // if it's upside down, it will probably freak out, use Cross to fix that https://forum.unity.com/threads/dot-product-to-360-degrees-or-0-1.650713/#:~:text=The%20dot%20product,the%20Y%20value.
+                double shipRollDot = (anyController != null && stabilizationGyros.Count > 0 ? anyController.GetTotalGravity().Normalized().Dot(stabilizationGyros[0].WorldMatrix.Right) : 0d);
+                float shipRoll = (float)(Math.Acos(MathHelper.Clamp(shipRollDot, -1, 1)) - (Math.PI / 2)).ToDegrees();
+                double shipPitchDot = (anyController != null && stabilizationGyros.Count > 0 ? anyController.GetTotalGravity().Normalized().Dot(stabilizationGyros[0].WorldMatrix.Forward) : 0d);
+                float shipPitch = (float)(Math.Acos(MathHelper.Clamp(shipPitchDot, -1, 1)) - (Math.PI / 2)).ToDegrees();
+
+                float targetRoll = (Math.Abs(shipRoll) > StabilizationRollThreshold ? -shipRoll * (GyroscopeStabilizationInverseRoll ? -1 : 1) : 0) * 60;
+                float targetPitch = (Math.Abs(shipPitch) > StabilizationPitchThreshold ? -shipPitch * (GyroscopeStabilizationInversePitch ? -1 : 1) : 0) * 60;
+
+                Log($"Target roll/pitch: {targetRoll} / {targetPitch}");
+                foreach (var gyro in stabilizationGyros)
+                {
+                    if (gyro.Roll != targetRoll)
+                        gyro.Roll = targetRoll;
+                    if (gyro.Pitch != targetPitch)
+                        gyro.Pitch = targetPitch;
+                    if (!gyro.GyroOverride)
+                        gyro.GyroOverride = true;
+                }
             }
 
-            debug?.WriteText(""); // clear
-            Log("MAIN LOOP");
+            float torsoTwist = MathHelper.Clamp(rotationInput.Y * TorsoTwistSensitivity, -TorsoTwistMaxSpeed, TorsoTwistMaxSpeed);
+            foreach (var joint in torsoTwistStators)
+            {
+                joint.Stator.TargetVelocityRPM = torsoTwist * (float)joint.Configuration.InversedMultiplier;
+            }
 
             bool turning = moveInput.X != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
