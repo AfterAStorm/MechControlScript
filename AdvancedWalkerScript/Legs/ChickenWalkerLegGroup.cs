@@ -65,7 +65,12 @@ namespace IngameScript
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
                 double x = sin * 1.5d * Configuration.StepLengthMultiplier - 1 + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
-                double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance * StandingHeight) + 1 - (crouch ? 2 : 0)), double.MinValue, 4f * StandingHeight);
+                double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));
+                if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
+                {
+                    x = -1;
+                    y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
+                }
 
                 Log($"xy: {x}, {y}, {maxDistance}");
 
@@ -148,7 +153,7 @@ namespace IngameScript
                     case Animation.CrouchWalk:
                     case Animation.Walk:
                         if (AnimationWaitTime == 0)
-                            AnimationStep = 2.5d;
+                            AnimationStep = 2d;
                         AnimationWaitTime += forwardsDelta * Configuration.AnimationSpeed;
                         double absWaitTime = Math.Abs(AnimationWaitTime);
                         if (absWaitTime < 1f)
@@ -159,7 +164,7 @@ namespace IngameScript
                                 lg.AutoLock = false;
                                 lg.Unlock();
                             }
-                            leftAngles = CalculateAngles(AnimationStep - .5f);
+                            leftAngles = CalculateAngles(AnimationStep);
                             rightAngles = CalculateAngles(AnimationWaitTime + 2f);
                             break;
                         }
