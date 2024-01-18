@@ -84,7 +84,14 @@ namespace IngameScript
                 switch (type)
                 {
                     case 0:
+                    case 1:
                         return new ChickenWalkerLegGroup();
+                    case 2:
+                        return new HumanoidLegGroup();
+                    case 3:
+                        return new SpideroidLegGroup();
+                    case 4:
+                        return new DigitigradeLegGroup();
                     default:
                         throw new Exception("Leg type not implemented!");
                 }

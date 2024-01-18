@@ -44,6 +44,9 @@
     <Compile Include="Joint.cs" />
     <Compile Include="LegGroup.cs" />
     <Compile Include="LegConfiguration.cs" />
+    <Compile Include="Legs\DigitigradeLegGroup.cs" />
+    <Compile Include="Legs\SpideroidLegGroup.cs" />
+    <Compile Include="Legs\HumanoidLegGroup.cs" />
     <Compile Include="Legs\ChickenWalkerLegGroup.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options.props">
