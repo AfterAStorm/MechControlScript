@@ -40,7 +40,7 @@ namespace IngameScript
                     (LeftFootStators.Count > 0 && LeftKneeStators.Count > 0 ? Vector3.Distance(LeftFootStators[0].Stator.GetPosition(), LeftKneeStators[0].Stator.GetPosition()) :
                     (RightFootStators.Count > 0 && RightKneeStators.Count > 0 ? Vector3.Distance(RightFootStators[0].Stator.GetPosition(), RightKneeStators[0].Stator.GetPosition()) : 0));//2.5f;
 
-                double maxDistance = (thighLength + calfLength) * StandingHeight;
+                double maxDistance = (thighLength + calfLength);
                 //Log($"Lengths: {thighLength} {calfLength}");
 
                 // with sin, 0-2 is 0 to 1 to 0, while 2-4 is 0 to -1 to 0
@@ -64,7 +64,7 @@ namespace IngameScript
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
-                double x = sin * 1.5d * Configuration.StepLengthMultiplier - 1 + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
+                double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));
                 if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
                 {
@@ -136,8 +136,8 @@ namespace IngameScript
                     case Animation.Idle:
                         AnimationWaitTime = 0;
                         AnimationStep = 2;
-                        leftAngles = CalculateAngles(2);
-                        rightAngles = CalculateAngles(2);
+                        leftAngles = CalculateAngles(AnimationStep);
+                        rightAngles = CalculateAngles(AnimationStep);
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                         {
                             lg.Enabled = true;
@@ -153,10 +153,10 @@ namespace IngameScript
                     case Animation.CrouchWalk:
                     case Animation.Walk:
                         if (AnimationWaitTime == 0)
-                            AnimationStep = 2d;
+                            AnimationStep = 0d;
                         AnimationWaitTime += forwardsDelta * Configuration.AnimationSpeed;
-                        double absWaitTime = Math.Abs(AnimationWaitTime);
-                        if (absWaitTime < 1f)
+                        //double absWaitTime = Math.Abs(AnimationWaitTime);
+                        /*if (absWaitTime < 2f)
                         {
                             foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                             {
@@ -165,9 +165,9 @@ namespace IngameScript
                                 lg.Unlock();
                             }
                             leftAngles = CalculateAngles(AnimationStep);
-                            rightAngles = CalculateAngles(AnimationWaitTime + 2f);
+                            rightAngles = CalculateAngles(AnimationStepOffset);//(AnimationWaitTime + 2f) % 4);
                             break;
-                        }
+                        }*/
                         /*else if (absWaitTime <= 2.3f)
                         {
                             leftAngles = CalculateAngles(AnimationStep);
