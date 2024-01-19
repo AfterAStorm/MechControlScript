@@ -204,7 +204,7 @@ namespace IngameScript
                     case BlockType.Foot: // if its a joint, create it and add it appropriately
                         Joint joint = new Joint(block.Block as IMyMotorStator, new JointConfiguration()
                         {
-                            Inversed = false,
+                            Inversed = block.Inverted,
                             Offset = 0
                         });
                         switch (block.Type)
