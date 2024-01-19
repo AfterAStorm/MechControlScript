@@ -50,6 +50,7 @@ namespace IngameScript
                 );
                 angles.KneeDegrees = (Math.PI - diameter2).ToDegrees();
                 angles.FeetDegrees = (180d - angles.HipDegrees.Absolute180() - angles.KneeDegrees.Absolute180());
+                Log(angles.FeetDegrees);
 
                 return angles;
             }

@@ -87,12 +87,12 @@ namespace IngameScript
             {
                 double currentAngle = joint.Stator.Angle.ToDegrees();
                 bool isHinge = joint.Stator.BlockDefinition.SubtypeName.Contains("Hinge"); // 0 to 360 vs -90 to 90
-                Log($"Joint {joint.Stator.CustomName}: from {currentAngle} ({currentAngle.To180()}) to {(isHinge ? targetAngle : targetAngle.AbsoluteDegrees())}");
+                Log($"Joint {joint.Stator.CustomName} (hinge: {isHinge}): from {currentAngle} ({currentAngle.To180()}) to {(isHinge ? targetAngle : targetAngle.AbsoluteDegrees())}; {joint.Configuration.InversedMultiplier}");
                 if (isHinge)
-                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp(targetAngle.AbsoluteDegrees(true) - currentAngle - offset, -MaxRPM, MaxRPM);
+                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((targetAngle % 180 - 180) - currentAngle - offset, -MaxRPM, MaxRPM);
                 else
                 {
-                    double rotation = (targetAngle.AbsoluteDegrees() - offset - currentAngle.AbsoluteDegrees() + 540) % 360 - 180; // thank you https://math.stackexchange.com/a/2898118 :D
+                    double rotation = (targetAngle.AbsoluteDegrees() - offset - currentAngle + 540) % 360 - 180; // thank you https://math.stackexchange.com/a/2898118 :D
                     float rpm = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
 
                     Log($" - RPM: {rpm}, rotation: {rotation}");
