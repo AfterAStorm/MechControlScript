@@ -22,12 +22,13 @@ namespace IngameScript
 {
     public partial class Program
     {
-        public static class InverseKinematics
+        public static class InverseKinematics2
         {
             public static LegAngles CalculateLeg(double thighLength, double calfLength, double x, double y)
             {
                 LegAngles angles = new LegAngles();
 
+                /*
                 // We assume the origin is 0, 0
                 double distance = Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2));
                 // ^ gets the hypotenuse
@@ -49,9 +50,9 @@ namespace IngameScript
                     (2 * thighLength * calfLength)
                 );
                 angles.KneeDegrees = (Math.PI - diameter2).ToDegrees();
-                angles.FeetDegrees = (180d - angles.HipDegrees.Absolute180() - angles.KneeDegrees.Absolute180());
+                angles.FeetDegrees = (180d - angles.HipDegrees.Absolute360() - angles.KneeDegrees.Absolute360());
                 Log(angles.FeetDegrees);
-
+                */
                 return angles;
             }
         }
@@ -59,6 +60,18 @@ namespace IngameScript
 
     public static class AngleConversions
     {
+        public static double Modulo(double x, double divisor)
+        {
+            double r = x % divisor;
+            return (r < 0 ? r + divisor : r);//(x % divisor + divisor) % divisor;
+        }
+
+
+        public static double CompatModulo(this double x, double divisor)
+        {
+            return Modulo(x, divisor);
+        }
+
         /// <summary>
         /// Converts radians to degrees
         /// </summary>
@@ -97,6 +110,19 @@ namespace IngameScript
         public static float ToRadians(this float degrees)
         {
             return MathHelper.ToRadians(degrees);
+        }
+
+        public static double Absolute(this double x) => Math.Abs(x);
+
+        public static double ModuloHinge(this double x)
+        {
+            return MathHelper.Clamp(x, -90, 90);
+            /*
+            while (x <= -90)
+                x += 90;
+            while (x >= 90)
+                x -= 90;
+            return x;*/
         }
 
         /// <summary>
@@ -142,7 +168,17 @@ namespace IngameScript
         {
             return degrees - 180;
         }
-        
+
+        /// <summary>
+        /// Keeps angles in range of 180s
+        /// </summary>
+        /// <param name="degres"></param>
+        /// <returns></returns>
+        public static double Absolute360(this double degrees)
+        {
+            return Modulo(degrees, 360);
+        }
+
         /// <summary>
         /// Keeps angles in range of 180s
         /// </summary>
@@ -150,7 +186,17 @@ namespace IngameScript
         /// <returns></returns>
         public static double Absolute180(this double degrees)
         {
-            return degrees % 180;
+            return Modulo(degrees, 180);
+        }
+
+        /// <summary>
+        /// Keeps angles in range of 90s
+        /// </summary>
+        /// <param name="degres"></param>
+        /// <returns></returns>
+        public static double Absolute90(this double degrees)
+        {
+            return Modulo(degrees, 90);
         }
     }
 }
