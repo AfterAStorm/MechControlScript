@@ -60,7 +60,8 @@ namespace IngameScript
 
             public double ThighLength, CalfLength;
 
-            public double StepLengthMultiplier;
+            public double StepLength;
+            public double StepHeight;
 
             public double AnimationSpeed => WalkCycleSpeed;
 
@@ -91,10 +92,12 @@ namespace IngameScript
                 ini.Set("Leg", "CalfLength", CalfLength);
                 ini.SetComment("Leg", "ThighLength", "If set to any number lower than zero (-1 for example), it will automatically get approximate the length");
 
-                ini.Set("Leg", "StepLengthMultiplier", StepLengthMultiplier);
-                ini.SetComment("Leg", "StepLengthMultiplier", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
+                ini.Set("Leg", "StepLength", StepLength);
+                ini.SetComment("Leg", "StepLength", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
+                ini.Set("Leg", "StepHeight", StepHeight);
+                ini.SetComment("Leg", "StepHeight", "This changes step height -- how far up the feet will go");
 
-                ini.SetSectionComment("Leg", "These are all the leg group settings associated with this leg group,\nchanging these will change all the other joints in the same group");
+                ini.SetSectionComment("Leg", $"These are all the settings associated with this leg group (group {Id}),\nchanging these will change all the other joints in the same group");
                 return ini.ToString();
             }
 
@@ -115,7 +118,8 @@ namespace IngameScript
                     ThighLength = ini.Get("Leg", "ThighLength").ToDouble(2.5d),
                     CalfLength = ini.Get("Leg", "CalfLength").ToDouble(2.5d),
 
-                    StepLengthMultiplier = ini.Get("Leg", "StepLengthMultiplier").ToDouble(1),
+                    StepLength = ini.Get("Leg", "StepLength").ToDouble(1),
+                    StepHeight = ini.Get("Leg", "StepHeight").ToDouble(1),
 
                     defaultValue = 1
                 };
