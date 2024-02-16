@@ -64,15 +64,35 @@ namespace IngameScript
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
-                double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
-                double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));
+                /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
+                double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
+
+                double crouchAdditive = crouch ? -2 : 0;
+                Log($"crouchAdditive: {crouchAdditive}");
+
+                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
+                double x =
+                    -sin * Configuration.StepLength + lean;
+                double y = MathHelper.Clamp(
+                    // value
+                    cos * (Configuration.StepHeight + 1) + Configuration.StepHeight + 2 + StandingHeight + 1,
+
+                    // min/max
+                    0,
+                    2 + Configuration.StepHeight + StandingHeight + 1
+                ) + crouchAdditive;
+
                 if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
                 {
-                    x = -1;
-                    y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
+                    x = lean;
+                    y = MathHelper.Clamp(
+                        cos * (Configuration.StepHeight + 1) + 2 + Configuration.StepHeight + StandingHeight + 1,
+                        0,
+                        2 + Configuration.StepHeight + StandingHeight + 1);
+                    //y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
                 }
 
-                Log($"xy: {x}, {y}, {maxDistance}");
+                Log($"xy: {x}, {y}, {maxDistance};;;{StandingHeight}");
 
                 return InverseKinematics.CalculateLeg(thighLength, calfLength, x, y);
 
@@ -135,7 +155,7 @@ namespace IngameScript
                     case Animation.Crouch:
                     case Animation.Idle:
                         AnimationWaitTime = 0;
-                        AnimationStep = 2;
+                        AnimationStep = 0;
                         leftAngles = CalculateAngles(AnimationStep);
                         rightAngles = CalculateAngles(AnimationStep);
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
@@ -201,10 +221,19 @@ namespace IngameScript
                             lg.AutoLock = true;
                         }
                         break;
+                    case Animation.Force:
+                        leftAngles = CalculateAngles(AnimationStep);
+                        rightAngles = CalculateAngles(AnimationStep);
+                        break;
                 }
 
+                //leftAngles.FeetRadians = Math.PI - leftAngles.HipRadians - leftAngles.KneeRadians;
+                //rightAngles.FeetRadians = Math.PI - rightAngles.HipRadians - rightAngles.KneeRadians;
+                leftAngles.FeetDegrees = -(leftAngles.HipDegrees + leftAngles.KneeDegrees);//180 - leftAngles.HipDegrees.Absolute180() - leftAngles.KneeDegrees.Absolute180();
+                rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
+                Log("ChickenWalker (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
                 Log("ChickenWalker (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
-                SetAngles(leftAngles, rightAngles * new LegAngles(1, 1, -1));
+                SetAngles(leftAngles * new LegAngles(1, -1, 1), rightAngles * new LegAngles(1, -1, -1));
             }
         }
     }

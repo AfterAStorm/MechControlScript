@@ -29,8 +29,8 @@ namespace IngameScript
             public double FeetDegrees;
 
             public double HipRadians => HipDegrees.ToRadians();
-            public double KneeRadians => HipDegrees.ToRadians();
-            public double FeetRadians => HipDegrees.ToRadians();
+            public double KneeRadians => KneeRadians.ToRadians();
+            public double FeetRadians => FeetRadians.ToRadians();
 
             public LegAngles(double hip, double knee, double feet)
             {
@@ -39,6 +39,7 @@ namespace IngameScript
                 FeetDegrees = feet;
             }
 
+            public static LegAngles operator +(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees + right.HipDegrees, left.KneeDegrees + right.KneeDegrees, left.FeetDegrees + right.FeetDegrees);
             public static LegAngles operator *(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees * right.HipDegrees, left.KneeDegrees * right.KneeDegrees, left.FeetDegrees * right.FeetDegrees);
         }
 
@@ -87,14 +88,26 @@ namespace IngameScript
             {
                 double currentAngle = joint.Stator.Angle.ToDegrees();
                 bool isHinge = joint.Stator.BlockDefinition.SubtypeName.Contains("Hinge"); // 0 to 360 vs -90 to 90
-                Log($"Joint {joint.Stator.CustomName} (hinge: {isHinge}): from {currentAngle} ({currentAngle.To180()}) to {(isHinge ? targetAngle : targetAngle.AbsoluteDegrees())}; {joint.Configuration.InversedMultiplier}");
+                Log($"Joint {joint.Stator.CustomName} (hinge: {isHinge}): from {currentAngle} ({currentAngle.To180()}) to {targetAngle - offset}; {joint.Configuration.InversedMultiplier}");
                 if (isHinge)
-                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((targetAngle % 180 - 180) - currentAngle - offset, -MaxRPM, MaxRPM);
+                {
+                    //Log($" - Hinge Target Angle: {(AngleConversions.Modulo(targetAngle - offset, 180) - 180)}");
+                    //joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((AngleConversions.Modulo(targetAngle - offset, 180) - 180) - currentAngle - offset, -MaxRPM, MaxRPM);
+
+                    //targetAngle = AngleConversions.ModuloHinge(targetAngle - offset);
+                    targetAngle = targetAngle.ModuloHinge();
+                    Log($" - Hinge Target Angle: {targetAngle - offset}");
+                    //double rotation = ((targetAngle - offset).Absolute180() - currentAngle + 270).Absolute180() - 90;
+                    //joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
+                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((targetAngle) - currentAngle, -MaxRPM, MaxRPM);
+                }
                 else
                 {
-                    double rotation = (targetAngle.AbsoluteDegrees() - offset - currentAngle + 540) % 360 - 180; // thank you https://math.stackexchange.com/a/2898118 :D
+                    double rotation = ((targetAngle - offset).Absolute360() - currentAngle + 540).Absolute360() - 180; // thank you https://math.stackexchange.com/a/2898118 :D
                     float rpm = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
 
+                    Log($" - Rotor Target Angle: {(targetAngle - offset).Absolute360()}");
+                    Log($" - Rotor Current Angle: {currentAngle}");
                     Log($" - RPM: {rpm}, rotation: {rotation}");
                     joint.Stator.TargetVelocityRPM = rpm;
                 }
