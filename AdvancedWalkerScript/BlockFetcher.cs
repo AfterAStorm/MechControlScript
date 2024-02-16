@@ -17,6 +17,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame.Utilities;
 using VRage.Game.ObjectBuilders.Definitions;
 using VRageMath;
+using VRageRender;
 using static IngameScript.Program;
 
 namespace IngameScript
@@ -26,7 +27,7 @@ namespace IngameScript
 
         // Regex: HR5+ turns into [h, r, 5, +], HL turns into [h, l, null, null], HLeft5+ turns into [h, left, 5, +], HipL turns into [hip, l, null, null]
         // It's a beauty for sure
-        private static readonly System.Text.RegularExpressions.Regex NamePattern = new System.Text.RegularExpressions.Regex(@"^([^lLrR]*)([lr]{1}|left{1}|right{1})?([0-9]+)?([-+]{1})?$");
+        private static readonly System.Text.RegularExpressions.Regex NamePattern = new System.Text.RegularExpressions.Regex(@"^([^lr]*)([lr]{1}|left{1}|right{1})?([0-9]+)?([-+]{1})?$");
 
         public enum BlockType
         {
@@ -240,11 +241,13 @@ namespace IngameScript
 
             public static void GetBlocks()
             {
-                List<LegGroup> newLegs = new List<LegGroup>();
+                Dictionary<int, LegGroup> newLegs = new Dictionary<int, LegGroup>();
                 List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
                 List<FetchedBlock> reiterate = new List<FetchedBlock>();
 
-                List<LegConfiguration> lastConfigurations = Legs.Select(leg => leg.Configuration).ToList();
+                Dictionary<int, LegConfiguration> lastConfigurations = new Dictionary<int, LegConfiguration>();
+                foreach (var kv in Legs)
+                    lastConfigurations.Add(kv.Key, kv.Value.Configuration);
 
                 blocks.AddRange(BlockFinder.GetBlocksOfType<IMyMotorStator>());
                 blocks.AddRange(BlockFinder.GetBlocksOfType<IMyLandingGear>());
@@ -258,7 +261,7 @@ namespace IngameScript
                         continue;
                     FetchedBlock fetched = triedFetch.Value;
                     Log($"Parsed block {fetched.Block.CustomName}");
-                    if (newLegs.IsValidIndex(fetched.Group)) // leg already exists
+                    if (newLegs.ContainsKey(fetched.Group)) // leg already exists
                     {
                         AddToLeg(fetched, newLegs[fetched.Group]);
                         continue;
@@ -271,7 +274,7 @@ namespace IngameScript
                         continue;
                     }
 
-                    LegConfiguration lastLegConfiguration = lastConfigurations.Find(c => c.Id == fetched.Group); // try to find the last configuration
+                    LegConfiguration lastLegConfiguration = lastConfigurations.GetValueOrDefault(fetched.Group); // try to find the last configuration
                     LegConfiguration jointConfiguration = LegConfiguration.Parse(fetched.Ini); // parse the possibly new configuration
                     jointConfiguration.Id = fetched.Group;
                     if (!lastLegConfiguration.Default && lastLegConfiguration.Equals(jointConfiguration)) // check if they are different
@@ -282,14 +285,14 @@ namespace IngameScript
 
                     LegGroup leg = CreateLegFromType(jointConfiguration.LegType);
                     leg.Configuration = jointConfiguration;
-                    newLegs.Add(leg);
+                    newLegs.Add(fetched.Group, leg);
                     AddToLeg(fetched, leg);
                 }
 
                 // These are blocks that got skipped
                 foreach (FetchedBlock fetched in reiterate)
                 {
-                    if (newLegs.IsValidIndex(fetched.Group)) // leg exists
+                    if (newLegs.ContainsKey(fetched.Group)) // leg exists
                     {
                         AddToLeg(fetched, newLegs[fetched.Group]);
                         continue;
@@ -300,7 +303,7 @@ namespace IngameScript
                     config.Id = fetched.Group;
                     LegGroup leg = CreateLegFromType(config.LegType);
                     leg.Configuration = config;
-                    newLegs.Add(leg);
+                    newLegs.Add(fetched.Group, leg);
                     AddToLeg(fetched, leg);
                 }
 
