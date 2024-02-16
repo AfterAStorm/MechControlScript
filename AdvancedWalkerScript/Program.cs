@@ -136,12 +136,15 @@ namespace IngameScript
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
 
+        bool force = false;
+        float forcedStep = 0;
+
         // Variables //
 
         public static IMyTextPanel debug = null;
         public static IMyTextPanel debug2 = null;
 
-        public static List<LegGroup> Legs = new List<LegGroup>();
+        public static Dictionary<int, LegGroup> Legs = new Dictionary<int, LegGroup>();
 
         List<InvalidatableSurfaceRenderer> integrityRenderers = new List<InvalidatableSurfaceRenderer>();
         List<InvalidatableSurfaceRenderer> statusRenderers = new List<InvalidatableSurfaceRenderer>();
@@ -291,6 +294,12 @@ namespace IngameScript
 
         }
 
+        public void Warn(string title, string info)
+        {
+            Echo($"[Color=#dcf71600]Warning: {title}[/Color]");
+            Echo($"[Color=#c8e02d00]{info}[/Color]\n");
+        }
+
         /// <summary>
         /// Main loop
         /// </summary>
@@ -309,7 +318,16 @@ namespace IngameScript
             Echo($"{Legs.Count} leg group{(Legs.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last       Tick: {lastRuntime}ms");
-            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
+            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples\n");
+
+            if (cockpits.Count <= 0)
+            {
+                Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
+            }
+            if (Legs.Count <= 0)
+            {
+                Warn("No Legs Found!", "Failed to find any leg groups!\nNeed help setting up? Check the documentation at github.com/AfterAStorm/AdvancedWalkerScript/wiki");
+            }
 
             // Handle arguments
             if (argument != null)
@@ -319,6 +337,7 @@ namespace IngameScript
                 {
                     case "reload": // Reloads the script's blocks and configuration
                         GetBlocks();
+                        force = false;
                         break;
                     case "crouch": // Toggle crouch (overrides the cockpit [c]), argument for "on" or "true" and "off" or "false", off and false aren't checked but infered
                         if (argument.Length > 1)
@@ -335,6 +354,11 @@ namespace IngameScript
                         break;
                     case "halt": // Halt mech movement override
                         movementOverride = Vector3.Zero;
+                        force = false;
+                        break;
+                    case "step":
+                        force = true;
+                        forcedStep = float.Parse(arguments[1]);
                         break;
                 }
             }
@@ -431,14 +455,25 @@ namespace IngameScript
 
             delta *= -movement.Z; // negative because -Z is forwards!
 
+            if (force)
+            {
+                foreach (LegGroup leg in Legs.Values)
+                {
+                    leg.Animation = Animation.Force;
+                    leg.AnimationStep = forcedStep;
+                    leg.Update(0.01, 0);
+                }
+                return;
+            }
+
             if (Math.Abs(movement.Z) <= 0.035)
-                foreach (LegGroup leg in Legs)
+                foreach (LegGroup leg in Legs.Values)
                     leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else
-                foreach (LegGroup leg in Legs)
+                foreach (LegGroup leg in Legs.Values)
                     leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
 
-            foreach (LegGroup leg in Legs)
+            foreach (LegGroup leg in Legs.Values)
                 leg.Update(delta, Runtime.TimeSinceLastRun.TotalSeconds);
         }
     }
