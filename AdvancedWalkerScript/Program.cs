@@ -74,6 +74,7 @@ namespace IngameScript
         // - Walking
 
         static float WalkCycleSpeed = 3f;
+        static bool AutoHalt = true; // if it should slow down when there is no one in the cockpit holding a direction
 
         // - Gyroscopes
 
@@ -321,13 +322,9 @@ namespace IngameScript
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples\n");
 
             if (cockpits.Count <= 0)
-            {
                 Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
-            }
             if (Legs.Count <= 0)
-            {
                 Warn("No Legs Found!", "Failed to find any leg groups!\nNeed help setting up? Check the documentation at github.com/AfterAStorm/AdvancedWalkerScript/wiki");
-            }
 
             // Handle arguments
             if (argument != null)
@@ -359,6 +356,24 @@ namespace IngameScript
                     case "step":
                         force = true;
                         forcedStep = float.Parse(arguments[1]);
+                        break;
+
+                    // set methods //
+                    case "speed":
+                    case "walksped":
+                        WalkCycleSpeed = float.Parse(arguments[1]);
+                        break;
+
+                    case "steplength":
+                    case "sl":
+                        double stepLength = double.Parse(arguments[1]);
+                        foreach (LegGroup g in Legs.Values)
+                            g.Configuration.StepLength = stepLength;
+                        break;
+
+                    case "autohalt":
+                    case "ah":
+                        AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
                         break;
                 }
             }
@@ -441,8 +456,14 @@ namespace IngameScript
 
             Vector3 movementDirection = (moveInput - movement) * .5f;
 
-            movement.X += movementDirection.X * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
-            movement.Z += movementDirection.Z * (movementDirection.Z > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+            if (!AutoHalt && controller == null)
+            {
+            }
+            else
+            {
+                movement.X += movementDirection.X * (movementDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+                movement.Z += movementDirection.Z * (movementDirection.Z > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
+            }
 
             if (Math.Abs(movementDirection.X) < .01 && Math.Abs(movement.X) < .01)
                 movement.X = 0;
