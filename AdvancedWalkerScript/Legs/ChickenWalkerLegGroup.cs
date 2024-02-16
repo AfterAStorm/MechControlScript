@@ -67,19 +67,21 @@ namespace IngameScript
                 /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
-                double crouchAdditive = crouch ? -2 : 0;
+                double crouchAdditive = crouch ? -1d : 0;
                 Log($"crouchAdditive: {crouchAdditive}");
+
+                double stepHeight = Configuration.StepHeight - .5d;
 
                 double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(
                     // value
-                    cos * (Configuration.StepHeight + 1) + Configuration.StepHeight + 2 + StandingHeight + 1,
+                    cos * (stepHeight + 1) + stepHeight + 2 + StandingHeight + 1.5,
 
                     // min/max
                     0,
-                    2 + Configuration.StepHeight + StandingHeight + 1
+                    2 + stepHeight + StandingHeight + 1
                 ) + crouchAdditive;
 
                 if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
@@ -229,6 +231,9 @@ namespace IngameScript
 
                 //leftAngles.FeetRadians = Math.PI - leftAngles.HipRadians - leftAngles.KneeRadians;
                 //rightAngles.FeetRadians = Math.PI - rightAngles.HipRadians - rightAngles.KneeRadians;
+                leftAngles.KneeDegrees -= 10;
+                rightAngles.KneeDegrees -= 10;
+
                 leftAngles.FeetDegrees = -(leftAngles.HipDegrees + leftAngles.KneeDegrees);//180 - leftAngles.HipDegrees.Absolute180() - leftAngles.KneeDegrees.Absolute180();
                 rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
                 Log("ChickenWalker (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
