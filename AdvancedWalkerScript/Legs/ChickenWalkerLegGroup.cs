@@ -26,6 +26,7 @@ namespace IngameScript
         {
             protected override LegAngles CalculateAngles(double step)
             {
+                step = step.Mod(4);
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
 
                 // shamelessly borrowed from https://opentextbooks.clemson.edu/wangrobotics/chapter/inverse-kinematics/
