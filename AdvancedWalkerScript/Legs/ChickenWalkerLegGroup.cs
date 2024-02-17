@@ -169,9 +169,9 @@ namespace IngameScript
                         break;
                     case Animation.CrouchTurn:
                     case Animation.Turn:
-                        leftAngles = CalculateAngles(AnimationStep);
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
                         OffsetLegs = true;
-                        rightAngles = CalculateAngles(AnimationStepOffset);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
                         break;
                     case Animation.CrouchWalk:
                     case Animation.Walk:
@@ -198,8 +198,8 @@ namespace IngameScript
                             break;
                         }*/
                         // else
-                        leftAngles = CalculateAngles(AnimationStep);
-                        rightAngles = CalculateAngles(AnimationStepOffset);
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
 
                         /* this might be wrong now
                          *   3

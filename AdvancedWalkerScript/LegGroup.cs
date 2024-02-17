@@ -66,6 +66,7 @@ namespace IngameScript
 
             public double AnimationStep = 0; // pff, who needes getters and setters?
             public double AnimationStepOffset => OffsetLegs ? AnimationStep + 2 % 4 : AnimationStep;
+            public double IdOffset => Configuration.Id % 2 == 0 ? 0 : 2;
             public bool OffsetLegs = true;
             public Animation Animation = Animation.Idle;
             public double AnimationWaitTime = 0;
