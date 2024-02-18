@@ -43,11 +43,24 @@ namespace IngameScript
 
             public double Minimum => Stator.LowerLimitDeg;
             public double Maximum => Stator.UpperLimitDeg;
+            public bool IsHinge => Stator.BlockDefinition.SubtypeName.Contains("Hinge");
+            public bool IsRotor => !IsHinge;
 
             public Joint(IMyMotorStator stator, JointConfiguration? configuration = null)
             {
                 Stator = stator;
                 Configuration = configuration ?? JointConfiguration.DEFAULT;
+            }
+
+            public void SetAngle(double angle)
+            {
+                double current = Stator.Angle.ToDegrees();
+                if (IsHinge)
+                    angle = angle.ClampHinge() - current; // lock between -90 to 90; aka angle = angle - current
+                else
+                    angle = (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D
+
+                Stator.TargetVelocityRPM = (float)angle.Clamp(-MaxRPM, MaxRPM);
             }
 
         }

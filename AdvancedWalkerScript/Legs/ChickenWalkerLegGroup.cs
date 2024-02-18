@@ -26,7 +26,7 @@ namespace IngameScript
         {
             protected override LegAngles CalculateAngles(double step)
             {
-                step = step.Mod(4);
+                step = step.Modulo(4);
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
 
                 // shamelessly borrowed from https://opentextbooks.clemson.edu/wangrobotics/chapter/inverse-kinematics/
@@ -89,9 +89,9 @@ namespace IngameScript
                 {
                     x = lean;
                     y = MathHelper.Clamp(
-                        cos * (Configuration.StepHeight + 1) + 2 + Configuration.StepHeight + StandingHeight + 1,
+                        cos * (stepHeight + 1) + 2 + stepHeight + StandingHeight + 1,
                         0,
-                        2 + Configuration.StepHeight + StandingHeight + 1);
+                        2 + stepHeight + StandingHeight + 1);
                     //y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
                 }
 

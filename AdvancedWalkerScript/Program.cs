@@ -154,13 +154,13 @@ namespace IngameScript
         List<IMyGyro> stabilizationGyros = new List<IMyGyro>();
         List<Joint> torsoTwistStators = new List<Joint>();
         List<IMyShipController> cockpits = new List<IMyShipController>();
-        private bool crouched = false;
-        private bool crouchOverride = false; // argument crouch
+        bool crouched = false;
+        bool crouchOverride = false; // argument crouch
 
-        private Vector3 movementOverride = Vector3.Zero;
+        Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
 
-        private static void Log(params object[] messages)
+        static void Log(params object[] messages)
         {
             string message = string.Join(" ", messages);
             if (debug == null)
@@ -174,7 +174,7 @@ namespace IngameScript
         /// Gets the blocks required for operation
         /// Ran at startup and on request
         /// </summary>
-        private void GetBlocks()
+        void GetBlocks()
         {
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
             debug2 = GridTerminalSystem.GetBlockWithName(DebugLCD + "2") as IMyTextPanel;

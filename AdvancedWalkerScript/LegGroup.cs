@@ -85,43 +85,16 @@ namespace IngameScript
 
             #region # - Methods
 
-            private void SetJointAngle(Joint joint, double targetAngle, double offset = 0)
-            {
-                double currentAngle = joint.Stator.Angle.ToDegrees();
-                bool isHinge = joint.Stator.BlockDefinition.SubtypeName.Contains("Hinge"); // 0 to 360 vs -90 to 90
-                Log($"Joint {joint.Stator.CustomName} (hinge: {isHinge}): from {currentAngle} ({currentAngle.To180()}) to {targetAngle - offset}; {joint.Configuration.InversedMultiplier}");
-                if (isHinge)
-                {
-                    //Log($" - Hinge Target Angle: {(AngleConversions.Modulo(targetAngle - offset, 180) - 180)}");
-                    //joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((AngleConversions.Modulo(targetAngle - offset, 180) - 180) - currentAngle - offset, -MaxRPM, MaxRPM);
-
-                    //targetAngle = AngleConversions.ModuloHinge(targetAngle - offset);
-                    targetAngle = targetAngle.ModuloHinge();
-                    Log($" - Hinge Target Angle: {targetAngle - offset}");
-                    //double rotation = ((targetAngle - offset).Absolute180() - currentAngle + 270).Absolute180() - 90;
-                    //joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
-                    joint.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((targetAngle) - currentAngle, -MaxRPM, MaxRPM);
-                }
-                else
-                {
-                    double rotation = ((targetAngle - offset).Absolute360() - currentAngle + 540).Absolute360() - 180; // thank you https://math.stackexchange.com/a/2898118 :D
-                    float rpm = (float)MathHelper.Clamp(rotation, -MaxRPM, MaxRPM);
-
-                    Log($" - Rotor Target Angle: {(targetAngle - offset).Absolute360()}");
-                    Log($" - Rotor Current Angle: {currentAngle}");
-                    Log($" - RPM: {rpm}, rotation: {rotation}");
-                    joint.Stator.TargetVelocityRPM = rpm;
-                }
-            }
-
             private void SetAnglesOf(List<Joint> leftStators, List<Joint> rightStators, double leftAngle, double rightAngle, double offset)
             {
                 // We could split this into ANOTHER method, but i don't believe it's worth it
                 foreach (var motor in leftStators)
-                    SetJointAngle(motor, leftAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
+                    motor.SetAngle(leftAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset));
+                    //SetJointAngle(motor, leftAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((leftAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
                 foreach (var motor in rightStators)
-                    SetJointAngle(motor, -rightAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
+                    motor.SetAngle(-rightAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset));
+                    //SetJointAngle(motor, -rightAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
             }
 
@@ -153,7 +126,7 @@ namespace IngameScript
             /// <exception cref="Exception"></exception>
             protected virtual LegAngles CalculateAngles(double step)
             {
-                throw new Exception("Not Implemented");
+                throw new Exception("CalculateAngles Not Implemented");
             }
 
             public virtual void Update(double forwardsDelta, double delta)
