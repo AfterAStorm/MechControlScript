@@ -159,6 +159,7 @@ namespace IngameScript
 
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
+        double targetTorsoTwistAngle = -1;
 
         static void Log(params object[] messages)
         {
@@ -375,6 +376,13 @@ namespace IngameScript
                     case "ah":
                         AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
                         break;
+
+                    case "torsotwist":
+                    case "torso":
+                    case "twist":
+                    case "tt":
+                        targetTorsoTwistAngle = arguments.Length > 1 ? float.Parse(arguments[1]) : 0;
+                        break;
                 }
             }
 
@@ -393,16 +401,16 @@ namespace IngameScript
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
             IMyShipController anyController = controller ?? (cockpits.Count > 0 ? cockpits[0] : null);
 
-            Vector3 moveInput = Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero) + movementOverride, Vector3.MinusOne, Vector3.One);
-            Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw
-            float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered)
+            Vector3 moveInput = Vector3.IsZero(movementOverride) ? Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero), Vector3.MinusOne, Vector3.One) : movementOverride;
+            Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw // Mouse
+            float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered) // Q + E
 
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
 
             if (GyroscopeSteering)
             {
-                float value = ReverseTurnControls ? rollInput : moveInput.X;
+                float value = ReverseTurnControls ? moveInput.X : rollInput;
                 bool overrideEnabled = !GyroscopesDisableOverride || value != 0;
                 foreach (var gyro in steeringGyros)
                 {
@@ -446,8 +454,22 @@ namespace IngameScript
             }
 
             float torsoTwist = MathHelper.Clamp(rotationInput.Y * TorsoTwistSensitivity, -TorsoTwistMaxSpeed, TorsoTwistMaxSpeed);
+            if (torsoTwist == 0 && targetTorsoTwistAngle > -1)
+            {
+                bool done = true;
             foreach (var joint in torsoTwistStators)
             {
+                    joint.SetAngle(targetTorsoTwistAngle);
+                    if ((joint.Stator.Angle - targetTorsoTwistAngle).Absolute() > 0.05d)
+                        done = false;
+                }
+                if (done)
+                    targetTorsoTwistAngle = -1;
+            }
+            else
+            {
+                targetTorsoTwistAngle = -1;
+                foreach (var joint in torsoTwistStators)
                 joint.Stator.TargetVelocityRPM = torsoTwist * (float)joint.Configuration.InversedMultiplier;
             }
 
