@@ -29,7 +29,7 @@ namespace IngameScript
         void HandleStabilization(float steerValue)
         {
             //bool overrideEnabled = !GyroscopesDisableOverride || turnValue != 0;
-            IMyShipController reference = cockpits.First();
+            IMyShipController reference = cockpits.Count > 0 ? cockpits.First() : null;
             if (reference == null)
             {
                 Log($"no cockpit");
@@ -76,14 +76,15 @@ namespace IngameScript
 
             foreach (var gyro in stabilizationGyros)
             {
-
+                gyro.Gyro.Roll = (float)-rollDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
+                gyro.Gyro.Yaw = (float)steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)gyro.Configuration.InversedMultiplier;
             }
 
             foreach (var stator in azimuthStators)
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for azimuth/yaw stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM(steerValue * ((float)SteeringSensitivity / 60) * 60 * (float)stator.Configuration.InversedMultiplier);
+                stator.SetRPM(steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)stator.Configuration.InversedMultiplier);
             }
 
             foreach (var stator in elevationStators)
@@ -98,7 +99,7 @@ namespace IngameScript
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for roll stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM((float)rollDirection * 60 * (float)stator.Configuration.InversedMultiplier);
+                stator.SetRPM((float)rollDirection * 60f * (float)stator.Configuration.InversedMultiplier);
             }
         }
     }
