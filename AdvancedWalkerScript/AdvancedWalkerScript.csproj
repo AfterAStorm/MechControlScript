@@ -40,6 +40,8 @@
   <ItemGroup>
     <Compile Include="Animation.cs" />
     <Compile Include="BlockFetcher.cs" />
+    <Compile Include="Features\TorsoTwist.cs" />
+    <Compile Include="Features\Stabilization.cs" />
     <Compile Include="InverseKinematics.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Joint.cs" />

@@ -99,15 +99,19 @@ namespace IngameScript
 
         /*
          * Mech Controls
-         * W/S >> Forward/Backward
-         * A/D >> Strafe Left/Right
-         * Q/E >> Turn Left/Right
+         * W/S   >> Forward/Backward
+         * A/D   >> Strafe Left/Right
+         * Q/E   >> Turn Left/Right
+         * C     >> Crouch
+         * Space >> Jetpack
          * Mouse >> Torso Twist/Arm Control
          * 
          * Reversed Mech Turn Controls
-         * W/S >> (see above)
-         * A/D >> Turn Left/Right
-         * Q/E >> Strafe Left/Right
+         * W/S   >> (see above)
+         * A/D   >> Turn Left/Right
+         * Q/E   >> Strafe Left/Right
+         * C     >> (see above)
+         * Space >> (see above)
          * Mouse >> (see above)
          * 
          */
@@ -324,106 +328,6 @@ namespace IngameScript
         public void Save()
         {
 
-        }
-
-        void HandleStabilization(float steerValue)
-        {
-            //bool overrideEnabled = !GyroscopesDisableOverride || turnValue != 0;
-            IMyShipController reference = cockpits.First();
-            if (reference == null)
-            {
-                Log($"no cockpit");
-                return;
-            }
-            Vector3D gravity = reference.GetTotalGravity();
-            Vector3D up = reference.WorldMatrix.Up;
-            Vector3D forward = reference.WorldMatrix.Forward;
-            Vector3D back = reference.WorldMatrix.Backward;
-            Vector3D right = reference.WorldMatrix.Right;
-
-            /*Vector3D gravityAlignedRight = Vector3D.Cross(gravity.Normalized(), -forward).Normalized();
-            Vector3D gravityAlignedForward = Vector3D.Cross(gravity.Normalized(), gravityAlignedRight).Normalized();
-            Vector3D gravityAlignedDown = Vector3D.Cross(gravityAlignedRight, forward).Normalized();
-
-            double pitchDot = -Vector3D.Dot(gravityAlignedDown, gravityAlignedForward);
-            double rollDot = -Vector3D.Dot(up, gravityAlignedRight);
-
-            double pitch = Vector3D.Angle(forward, gravityAlignedForward) * Math.Sign(pitchDot);
-            double roll = Vector3D.Angle(right, gravityAlignedRight) * Math.Sign(rollDot);*/
-
-            Vector3D plane = forward - (Vector3D.Dot(forward, gravity) / gravity.Length()) * (gravity / gravity.Length());
-            double pitch = Math.Atan2(Vector3D.Cross(forward, plane).Length(), Vector3.Dot(forward, plane));
-            plane = right - (Vector3D.Dot(right, gravity) / gravity.Length()) * (gravity / gravity.Length());
-            double roll = Math.Atan2(Vector3D.Cross(right, plane).Length(), Vector3.Dot(right, plane)) * Math.Sign(Vector3.Dot(right, gravity));
-            Log($"pitch?: {pitch}");
-            Log($"roll?: {roll}");
-
-
-
-            /*Vector3D crossed = gravity.Normalized().Cross(forward);
-            Vector3D rollCrossed = gravity.Normalized().Cross(up);
-            double rollDirection = (rollCrossed.Y) * 6;
-            Log($"crossed:");
-            Log($"{rollCrossed.X}");
-            Log($"{rollCrossed.Y}");
-            Log($"{rollCrossed.Z}");*/
-
-            double pitchDirection = -pitch * 2;
-            double rollDirection = roll * 2;
-
-            Log($"roll dir: {rollDirection} fpr {rollStators.Count} rotors");
-            Log($"pitc dir: {pitchDirection} fpr {elevationStators.Count} rotors");
-
-            foreach (var gyro in stabilizationGyros)
-            {
-                
-            }
-
-            foreach (var stator in azimuthStators)
-            {
-                if (!stator.Stator.IsSharingInertiaTensor())
-                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for azimuth/yaw stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM(steerValue * ((float)SteeringSensitivity / 60) * 60 * (float)stator.Configuration.InversedMultiplier);
-            }
-
-            foreach (var stator in elevationStators)
-            {
-                if (!stator.Stator.IsSharingInertiaTensor())
-                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for elevation/pitch stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                //stator.SetRPM((float)pitchDirection * 60 * (float)stator.Configuration.InversedMultiplier);
-                // TODO
-            }
-
-            foreach (var stator in rollStators)
-            {
-                if (!stator.Stator.IsSharingInertiaTensor())
-                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for roll stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM((float)rollDirection * 60 * (float)stator.Configuration.InversedMultiplier);
-            }
-        }
-
-        void HandleTorsoTwist(float rotationInput)
-        {
-            // Handle torso twist
-            float torsoTwist = MathHelper.Clamp(rotationInput * TorsoTwistSensitivity, -TorsoTwistMaxSpeed, TorsoTwistMaxSpeed);
-            if (torsoTwist == 0 && targetTorsoTwistAngle > -1) // if we aren't trying to move and a set torso twist angle command requested a certain angle, go to it
-            {
-                bool done = true;
-                foreach (var joint in torsoTwistStators)
-                {
-                    joint.SetAngle(targetTorsoTwistAngle * joint.Configuration.InversedMultiplier);
-                    if ((joint.Stator.Angle - targetTorsoTwistAngle * joint.Configuration.InversedMultiplier).Absolute() > 0.05d)
-                        done = false;
-                }
-                if (done)
-                    targetTorsoTwistAngle = -1;
-            }
-            else // otherwise, just handle user input
-            {
-                targetTorsoTwistAngle = -1;
-                foreach (var joint in torsoTwistStators)
-                    joint.Stator.TargetVelocityRPM = torsoTwist * (float)joint.Configuration.InversedMultiplier;
-            }
         }
 
         void Warn(string title, string info)
