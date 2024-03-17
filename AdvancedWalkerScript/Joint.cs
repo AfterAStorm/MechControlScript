@@ -52,7 +52,17 @@ namespace IngameScript
                 Configuration = configuration ?? JointConfiguration.DEFAULT;
             }
 
-            public void SetAngle(double angle)
+            public Joint(FetchedBlock block)
+            {
+                Stator = block.Block as IMyMotorStator;
+                Configuration = new JointConfiguration()
+                {
+                    Inversed = block.Inverted,
+                    Offset = 0
+                };
+            }
+
+            public float GetRPMFor(double angle)
             {
                 double current = Stator.Angle.ToDegrees();
                 if (IsHinge)
@@ -60,9 +70,51 @@ namespace IngameScript
                 else
                     angle = (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D
 
-                Stator.TargetVelocityRPM = (float)angle.Clamp(-MaxRPM, MaxRPM);
+                return (float)angle.Clamp(-MaxRPM, MaxRPM);
             }
 
+            public void SetRPM(float rotationsPerMinute)
+            {
+                Stator.TargetVelocityRPM = rotationsPerMinute;
+            }
+
+            public void SetAngle(double angle)
+            {
+                Stator.TargetVelocityRPM = GetRPMFor(angle);
+            }
+
+        }
+
+        public class Gyroscope
+        {
+
+            public IMyGyro Gyro;
+            public JointConfiguration Configuration;
+
+            public Gyroscope(IMyGyro gyro, JointConfiguration? configuration = null)
+            {
+                Gyro = gyro;
+                Configuration = configuration ?? JointConfiguration.DEFAULT;
+            }
+
+            public Gyroscope(FetchedBlock block)
+            {
+                Gyro = block.Block as IMyGyro;
+                Configuration = new JointConfiguration()
+                {
+                    Inversed = block.Inverted,
+                    Offset = 0
+                };
+            }
+
+            public void SetOverrides(float pitch, float yaw, float roll) // PYR
+            {
+                if (!Gyro.GyroOverride)
+                    Gyro.GyroOverride = true;
+                Gyro.Pitch = pitch;
+                Gyro.Yaw = yaw;
+                Gyro.Roll = roll;
+            }
         }
     }
 }

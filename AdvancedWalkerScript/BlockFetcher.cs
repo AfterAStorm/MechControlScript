@@ -39,6 +39,9 @@ namespace IngameScript
             // Misc
             LandingGear,
             TorsoTwist,
+            GyroscopeAzimuth, // rotor or gyroscope, yaw
+            GyroscopeElevation, // rotor or gyroscope, pitch
+            GyroscopeRoll, // rotor or gyroscope, roll
         }
 
         public enum BlockSide
@@ -56,7 +59,7 @@ namespace IngameScript
             public int Group;
             public bool Inverted;
 
-            public bool AttachToLeg;
+            //public bool AttachToLeg;
 
             public MyIni Ini;
         }
@@ -98,9 +101,13 @@ namespace IngameScript
                 }
             }
 
-            private static List<BlockType> DoesntRequireSide = new List<BlockType>()
+            private static readonly List<BlockType> DoesntRequireSide = new List<BlockType>()
             {
-                BlockType.TorsoTwist
+                BlockType.TorsoTwist,
+
+                BlockType.GyroscopeAzimuth,
+                BlockType.GyroscopeElevation,
+                BlockType.GyroscopeRoll,
             };
 
             public static FetchedBlock? ParseBlock(IMyTerminalBlock block)
@@ -140,6 +147,23 @@ namespace IngameScript
                             if (!(block is IMyMotorStator))
                                 break; // Liars!
                             blockType = BlockType.TorsoTwist;
+                            break;
+                        case "gy": // y for yaw
+                        case "ga":
+                            if (!(block is IMyMotorStator) && !(block is IMyGyro))
+                                break; // Liars!
+                            blockType = BlockType.GyroscopeAzimuth;
+                            break;
+                        case "gp": // p for pitch
+                        case "ge":
+                            if (!(block is IMyMotorStator) && !(block is IMyGyro))
+                                break; // Liars!
+                            blockType = BlockType.GyroscopeElevation;
+                            break;
+                        case "g": // we are technically looking for "GR" but we have to check for the r (becomes BlockSide) later (in Program) because the R will get eaten by the regex
+                            if (!(block is IMyMotorStator) && !(block is IMyGyro))
+                                break; // Liars!
+                            blockType = BlockType.GyroscopeRoll;
                             break;
                         case "mg":
                         case "lg":
@@ -185,10 +209,10 @@ namespace IngameScript
                         Type = blockType.Value,
                         Side = side ?? BlockSide.Left,
                         Group = parsedId,
-                        Inverted = match.Groups[4].Value.Equals("-"),
+                        Inverted = match.Groups[4].Value.Equals("-") || match.Groups[1].Value.EndsWith("-"),
                         Ini = ini,
 
-                        AttachToLeg = blockType.Value != BlockType.TorsoTwist
+                        //AttachToLeg = blockType.Value != BlockType.TorsoTwist
                     };
                 }
                 return null;
@@ -203,11 +227,7 @@ namespace IngameScript
                     case BlockType.Hip:
                     case BlockType.Knee:
                     case BlockType.Foot: // if its a joint, create it and add it appropriately
-                        Joint joint = new Joint(block.Block as IMyMotorStator, new JointConfiguration()
-                        {
-                            Inversed = block.Inverted,
-                            Offset = 0
-                        });
+                        Joint joint = new Joint(block);
                         switch (block.Type)
                         {
                             case BlockType.Hip:

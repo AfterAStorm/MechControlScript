@@ -2,6 +2,7 @@
 using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
+using Sandbox.ModAPI.Interfaces.Terminal;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections;
@@ -21,6 +22,7 @@ using VRage.Game.ModAPI.Ingame.Utilities;
 using VRage.Game.ObjectBuilders.Definitions;
 using VRageMath;
 using static IngameScript.Program;
+using static IngameScript.IMyMotorStatorExtensions;
 
 namespace IngameScript
 {
@@ -76,9 +78,11 @@ namespace IngameScript
         static float WalkCycleSpeed = 3f;
         static bool AutoHalt = true; // if it should slow down when there is no one in the cockpit holding a direction
 
-        // - Gyroscopes
+        // - Stablization / Steering
 
-        static bool GyroscopeSteering = true; // if we should change the override of gyroscopes to turn (yaw)
+        static double SteeringSensitivity = 5; // x / 60th speed, specifies rotor/gyro RPM divided by 60, so 30 is half max power/rpm
+
+        /*static bool GyroscopeSteering = true; // if we should change the override of gyroscopes to turn (yaw)
         static string GyroscopeNames = "Mech Steering"; // the name of the gyroscopes
         static bool GyroscopesInverted = false; // should invert the yaw
         static bool GyroscopesDisableOverride = false; // when not turning, should we turn off override?
@@ -89,7 +93,7 @@ namespace IngameScript
         static bool GyroscopeStabilizationInversePitch = false; // if we should inverse pitch correction
 
         static double StabilizationRollThreshold = 5d; // if it goes past x degrees it will attempt to return it to between the threshold
-        static double StabilizationPitchThreshold = 10d; // if it goes past x degrees it will attempt to return it to between the threshold
+        static double StabilizationPitchThreshold = 10d; // if it goes past x degrees it will attempt to return it to between the threshold*/
 
         // - Controls
 
@@ -125,7 +129,7 @@ namespace IngameScript
         // These are script CONSTANTs, not 
         // OPTIONs
 
-        public static Program Singleton;
+        public static Program Singleton { get; private set; }
 
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
@@ -142,6 +146,8 @@ namespace IngameScript
 
         // Variables //
 
+        double deltaOffset = 0;
+
         public static IMyTextPanel debug = null;
         public static IMyTextPanel debug2 = null;
 
@@ -151,8 +157,12 @@ namespace IngameScript
         List<InvalidatableSurfaceRenderer> statusRenderers = new List<InvalidatableSurfaceRenderer>();
 
         List<IMyGyro> steeringGyros = new List<IMyGyro>();
-        List<IMyGyro> stabilizationGyros = new List<IMyGyro>();
+        List<Gyroscope> stabilizationGyros = new List<Gyroscope>();
         List<Joint> torsoTwistStators = new List<Joint>();
+        List<Joint> azimuthStators = new List<Joint>();
+        List<Joint> elevationStators = new List<Joint>();
+        List<Joint> rollStators = new List<Joint>();
+        List<Gyroscope> azimuthGyros = new List<Gyroscope>();
         List<IMyShipController> cockpits = new List<IMyShipController>();
         bool crouched = false;
         bool crouchOverride = false; // argument crouch
@@ -192,10 +202,10 @@ namespace IngameScript
                 :
                 (CockpitName.Equals("auto") ? c.IsMainCockpit : c.CustomName.Equals(CockpitName)))
             );
-            if (GyroscopeSteering)
-                GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
-            if (GyroscopeStabilization)
-                GridTerminalSystem.GetBlocksOfType(stabilizationGyros, gyro => gyro.CustomName.Equals(GyroscopeStabilizationNames));
+            //if (GyroscopeSteering)
+            //    GridTerminalSystem.GetBlocksOfType(steeringGyros, gyro => gyro.CustomName.Equals(GyroscopeNames));
+            //if (GyroscopeStabilization)
+            //    GridTerminalSystem.GetBlocksOfType(stabilizationGyros, gyro => gyro.CustomName.Equals(GyroscopeStabilizationNames));
 
             Log($"{(cockpits.Count > 0 ? "Found" : "Didn't Find")} cockpit(s)");
 
@@ -218,20 +228,40 @@ namespace IngameScript
 
             // Get torso twist stators and other blocks
             torsoTwistStators.Clear();
+            azimuthStators.Clear();
+            elevationStators.Clear();
+            rollStators.Clear();
             foreach (FetchedBlock block in BlockFinder.GetBlocksOfType<IMyMotorStator>(motor => BlockFetcher.ParseBlock(motor).HasValue).Select(motor => BlockFetcher.ParseBlock(motor)))
             {
-                Log(block.Type);
                 switch (block.Type)
                 {
                     case BlockType.TorsoTwist:
-                        torsoTwistStators.Add(new Joint(block.Block as IMyMotorStator, new JointConfiguration()
-                        {
-                            Inversed = block.Inverted,
-                            Offset = 0
-                        }));
+                        torsoTwistStators.Add(new Joint(block));
+                        break;
+                    case BlockType.GyroscopeAzimuth:
+                        azimuthStators.Add(new Joint(block));
+                        break;
+                    case BlockType.GyroscopeElevation:
+                        elevationStators.Add(new Joint(block));
+                        break;
+                    case BlockType.GyroscopeRoll:
+                        if (block.Side != BlockSide.Right)
+                            return; // since r is keyword, we have to look for "g" then block side "r" :/
+                        rollStators.Add(new Joint(block));
                         break;
                 }
             }
+
+            stabilizationGyros.Clear();
+            foreach (FetchedBlock block in BlockFinder.GetBlocksOfType<IMyGyro>(gyro => BlockFetcher.ParseBlock(gyro).HasValue).Select(gyro => BlockFetcher.ParseBlock(gyro)))
+                switch (block.Type)
+                {
+                    case BlockType.GyroscopeAzimuth:
+                    case BlockType.GyroscopeElevation:
+                    case BlockType.GyroscopeRoll:
+                        stabilizationGyros.Add(new Gyroscope(block));
+                        break;
+                }
 
             // Get the leg groups and the blocks associated with them
             BlockFetcher.GetBlocks();
@@ -296,7 +326,107 @@ namespace IngameScript
 
         }
 
-        public void Warn(string title, string info)
+        void HandleStabilization(float steerValue)
+        {
+            //bool overrideEnabled = !GyroscopesDisableOverride || turnValue != 0;
+            IMyShipController reference = cockpits.First();
+            if (reference == null)
+            {
+                Log($"no cockpit");
+                return;
+            }
+            Vector3D gravity = reference.GetTotalGravity();
+            Vector3D up = reference.WorldMatrix.Up;
+            Vector3D forward = reference.WorldMatrix.Forward;
+            Vector3D back = reference.WorldMatrix.Backward;
+            Vector3D right = reference.WorldMatrix.Right;
+
+            /*Vector3D gravityAlignedRight = Vector3D.Cross(gravity.Normalized(), -forward).Normalized();
+            Vector3D gravityAlignedForward = Vector3D.Cross(gravity.Normalized(), gravityAlignedRight).Normalized();
+            Vector3D gravityAlignedDown = Vector3D.Cross(gravityAlignedRight, forward).Normalized();
+
+            double pitchDot = -Vector3D.Dot(gravityAlignedDown, gravityAlignedForward);
+            double rollDot = -Vector3D.Dot(up, gravityAlignedRight);
+
+            double pitch = Vector3D.Angle(forward, gravityAlignedForward) * Math.Sign(pitchDot);
+            double roll = Vector3D.Angle(right, gravityAlignedRight) * Math.Sign(rollDot);*/
+
+            Vector3D plane = forward - (Vector3D.Dot(forward, gravity) / gravity.Length()) * (gravity / gravity.Length());
+            double pitch = Math.Atan2(Vector3D.Cross(forward, plane).Length(), Vector3.Dot(forward, plane));
+            plane = right - (Vector3D.Dot(right, gravity) / gravity.Length()) * (gravity / gravity.Length());
+            double roll = Math.Atan2(Vector3D.Cross(right, plane).Length(), Vector3.Dot(right, plane)) * Math.Sign(Vector3.Dot(right, gravity));
+            Log($"pitch?: {pitch}");
+            Log($"roll?: {roll}");
+
+
+
+            /*Vector3D crossed = gravity.Normalized().Cross(forward);
+            Vector3D rollCrossed = gravity.Normalized().Cross(up);
+            double rollDirection = (rollCrossed.Y) * 6;
+            Log($"crossed:");
+            Log($"{rollCrossed.X}");
+            Log($"{rollCrossed.Y}");
+            Log($"{rollCrossed.Z}");*/
+
+            double pitchDirection = -pitch * 2;
+            double rollDirection = roll * 2;
+
+            Log($"roll dir: {rollDirection} fpr {rollStators.Count} rotors");
+            Log($"pitc dir: {pitchDirection} fpr {elevationStators.Count} rotors");
+
+            foreach (var gyro in stabilizationGyros)
+            {
+                
+            }
+
+            foreach (var stator in azimuthStators)
+            {
+                if (!stator.Stator.IsSharingInertiaTensor())
+                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for azimuth/yaw stabilization rotor {stator.Stator.CustomName}, enable it for better results");
+                stator.SetRPM(steerValue * ((float)SteeringSensitivity / 60) * 60 * (float)stator.Configuration.InversedMultiplier);
+            }
+
+            foreach (var stator in elevationStators)
+            {
+                if (!stator.Stator.IsSharingInertiaTensor())
+                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for elevation/pitch stabilization rotor {stator.Stator.CustomName}, enable it for better results");
+                //stator.SetRPM((float)pitchDirection * 60 * (float)stator.Configuration.InversedMultiplier);
+                // TODO
+            }
+
+            foreach (var stator in rollStators)
+            {
+                if (!stator.Stator.IsSharingInertiaTensor())
+                    Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for roll stabilization rotor {stator.Stator.CustomName}, enable it for better results");
+                stator.SetRPM((float)rollDirection * 60 * (float)stator.Configuration.InversedMultiplier);
+            }
+        }
+
+        void HandleTorsoTwist(float rotationInput)
+        {
+            // Handle torso twist
+            float torsoTwist = MathHelper.Clamp(rotationInput * TorsoTwistSensitivity, -TorsoTwistMaxSpeed, TorsoTwistMaxSpeed);
+            if (torsoTwist == 0 && targetTorsoTwistAngle > -1) // if we aren't trying to move and a set torso twist angle command requested a certain angle, go to it
+            {
+                bool done = true;
+                foreach (var joint in torsoTwistStators)
+                {
+                    joint.SetAngle(targetTorsoTwistAngle * joint.Configuration.InversedMultiplier);
+                    if ((joint.Stator.Angle - targetTorsoTwistAngle * joint.Configuration.InversedMultiplier).Absolute() > 0.05d)
+                        done = false;
+                }
+                if (done)
+                    targetTorsoTwistAngle = -1;
+            }
+            else // otherwise, just handle user input
+            {
+                targetTorsoTwistAngle = -1;
+                foreach (var joint in torsoTwistStators)
+                    joint.Stator.TargetVelocityRPM = torsoTwist * (float)joint.Configuration.InversedMultiplier;
+            }
+        }
+
+        void Warn(string title, string info)
         {
             Echo($"[Color=#dcf71600]Warning: {title}[/Color]");
             Echo($"[Color=#c8e02d00]{info}[/Color]\n");
@@ -322,17 +452,26 @@ namespace IngameScript
             Echo($"Last       Tick: {lastRuntime}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples\n");
 
+            // Some Setup Warnings
             if (cockpits.Count <= 0)
-                Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
-            if (Legs.Count <= 0)
+            {
+                List<IMyShipController> controllers = BlockFinder.GetBlocksOfType<IMyShipController>();
+                if (controllers.Count > 0) // if there is any actual controllers, add it to the warning message
+                    Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls\n" +
+                        $"Maybe try changing {(controllers.Count > 1 ? $"one of the {controllers.Count} ship controller{(controllers.Count > 1 ? "s" : "")}" : $"{controllers[0].CustomName} to the main cockpit")}");
+                else
+                    Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
+            }
+            if (Legs.Count <= 0) // how bruh gonna *walk* without legza?
                 Warn("No Legs Found!", "Failed to find any leg groups!\nNeed help setting up? Check the documentation at github.com/AfterAStorm/AdvancedWalkerScript/wiki");
 
             // Handle arguments
-            if (argument != null)
+            if (!string.IsNullOrEmpty(argument))
             {
                 string[] arguments = argument.ToLower().Split(' ');
                 switch (arguments[0].Trim()) // Clean up argument, allow inputs
                 {
+                    default:
                     case "reload": // Reloads the script's blocks and configuration
                         GetBlocks();
                         force = false;
@@ -365,6 +504,12 @@ namespace IngameScript
                         WalkCycleSpeed = float.Parse(arguments[1]);
                         break;
 
+                    case "lean":
+                        float value = float.Parse(arguments[1]);
+                        StandingLean = value;
+                        AccelerationLean = value;
+                        break;
+
                     case "steplength":
                     case "sl":
                         double stepLength = double.Parse(arguments[1]);
@@ -384,6 +529,11 @@ namespace IngameScript
                         targetTorsoTwistAngle = arguments.Length > 1 ? float.Parse(arguments[1]) : 0;
                         break;
                 }
+                if (!updateSource.HasFlag(UpdateType.Update1))
+                {
+                    deltaOffset += Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d;
+                    return;
+                }
             }
 
             // Only update during specified update times!
@@ -395,7 +545,8 @@ namespace IngameScript
             integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
 
             // Get delta
-            double delta = Runtime.TimeSinceLastRun.TotalSeconds;
+            double delta = Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d + deltaOffset;
+            deltaOffset = 0;
 
             // Get controllers
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
@@ -408,72 +559,14 @@ namespace IngameScript
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
 
-            if (GyroscopeSteering)
-            {
-                float value = ReverseTurnControls ? moveInput.X : rollInput;
-                bool overrideEnabled = !GyroscopesDisableOverride || value != 0;
-                foreach (var gyro in steeringGyros)
-                {
-                    if (!overrideEnabled && gyro.GyroOverride)
-                    {
-                        gyro.Yaw = 0;
-                        gyro.GyroOverride = false;
-                    }
-                    else if (overrideEnabled)
-                    {
-                        gyro.GyroOverride = true;
-                        gyro.Yaw = value * float.MaxValue * (GyroscopesInverted ? -1 : 1);
-                    }
-                }
-            }
+            float turnValue = ReverseTurnControls ? moveInput.X : rollInput;
+            HandleStabilization(turnValue);
+            HandleTorsoTwist(rotationInput.Y);
 
-            if (GyroscopeStabilization)
-            {
-                // Positive is left, Negative is right
-                // Positive is forward, Negative is backward
-                // -180 to 180 represented as a -1 to 1
-                // if it's upside down, it will probably freak out, use Cross to fix that https://forum.unity.com/threads/dot-product-to-360-degrees-or-0-1.650713/#:~:text=The%20dot%20product,the%20Y%20value.
-                double shipRollDot = (anyController != null && stabilizationGyros.Count > 0 ? anyController.GetTotalGravity().Normalized().Dot(stabilizationGyros[0].WorldMatrix.Right) : 0d);
-                float shipRoll = (float)(Math.Acos(MathHelper.Clamp(shipRollDot, -1, 1)) - (Math.PI / 2)).ToDegrees();
-                double shipPitchDot = (anyController != null && stabilizationGyros.Count > 0 ? anyController.GetTotalGravity().Normalized().Dot(stabilizationGyros[0].WorldMatrix.Forward) : 0d);
-                float shipPitch = (float)(Math.Acos(MathHelper.Clamp(shipPitchDot, -1, 1)) - (Math.PI / 2)).ToDegrees();
+            Log($"turnValue: {turnValue}");
+            Log($"azimuthStators: {azimuthStators.Count}");
 
-                float targetRoll = (Math.Abs(shipRoll) > StabilizationRollThreshold ? -shipRoll * (GyroscopeStabilizationInverseRoll ? -1 : 1) : 0) * 60;
-                float targetPitch = (Math.Abs(shipPitch) > StabilizationPitchThreshold ? -shipPitch * (GyroscopeStabilizationInversePitch ? -1 : 1) : 0) * 60;
-
-                Log($"Target roll/pitch: {targetRoll} / {targetPitch}");
-                foreach (var gyro in stabilizationGyros)
-                {
-                    if (gyro.Roll != targetRoll)
-                        gyro.Roll = targetRoll;
-                    if (gyro.Pitch != targetPitch)
-                        gyro.Pitch = targetPitch;
-                    if (!gyro.GyroOverride)
-                        gyro.GyroOverride = true;
-                }
-            }
-
-            float torsoTwist = MathHelper.Clamp(rotationInput.Y * TorsoTwistSensitivity, -TorsoTwistMaxSpeed, TorsoTwistMaxSpeed);
-            if (torsoTwist == 0 && targetTorsoTwistAngle > -1)
-            {
-                bool done = true;
-            foreach (var joint in torsoTwistStators)
-            {
-                    joint.SetAngle(targetTorsoTwistAngle);
-                    if ((joint.Stator.Angle - targetTorsoTwistAngle).Absolute() > 0.05d)
-                        done = false;
-                }
-                if (done)
-                    targetTorsoTwistAngle = -1;
-            }
-            else
-            {
-                targetTorsoTwistAngle = -1;
-                foreach (var joint in torsoTwistStators)
-                joint.Stator.TargetVelocityRPM = torsoTwist * (float)joint.Configuration.InversedMultiplier;
-            }
-
-            bool turning = moveInput.X != 0;
+            bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
 
             Vector3 movementDirection = (moveInput - movement) * .5f;
@@ -496,7 +589,9 @@ namespace IngameScript
             Log(rotationInput.ToString());
             Log(movement.ToString());
 
+            Log($"Before delta: {delta}");
             delta *= -movement.Z; // negative because -Z is forwards!
+            Log($"After delta: {delta}");
 
             if (force)
             {
@@ -509,7 +604,7 @@ namespace IngameScript
                 return;
             }
 
-            if (Math.Abs(movement.Z) <= 0.035)
+            if (Math.Abs(movement.Z) <= 0.00001)
                 foreach (LegGroup leg in Legs.Values)
                     leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else

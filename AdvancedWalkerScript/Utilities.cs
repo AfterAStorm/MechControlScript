@@ -1,8 +1,18 @@
-﻿using System;
+﻿using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
+using System;
 using VRageMath;
 
 namespace IngameScript
 {
+    public static class IMyMotorStatorExtensions
+    {
+        public static bool IsSharingInertiaTensor(this IMyMotorStator stator)
+        {
+            return stator.GetProperty("ShareInertiaTensor").AsBool().GetValue(stator);
+        }
+    }
+
     public static class AngleConversions
     {
         /// <summary>
@@ -76,6 +86,13 @@ namespace IngameScript
         /// <param name="x"></param>
         /// <returns></returns>
         public static double Absolute(this double x) => Math.Abs(x);
+
+        /// <summary>
+        /// Absolutes the value, shorthand for Math.Abs(x)
+        /// </summary>
+        /// <param name="x"></param>
+        /// <returns></returns>
+        public static float Absolute(this float x) => Math.Abs(x);
 
         public static double ClampHinge(this double x)
         {

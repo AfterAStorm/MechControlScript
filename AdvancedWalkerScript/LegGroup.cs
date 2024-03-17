@@ -64,8 +64,9 @@ namespace IngameScript
 
             //public IMyCameraBlock[] InclineCameras; // TODO: use these, give them a purpose!
 
+            protected double LastDelta = 1;
             public double AnimationStep = 0; // pff, who needes getters and setters?
-            public double AnimationStepOffset => OffsetLegs ? AnimationStep + 2 % 4 : AnimationStep;
+            public double AnimationStepOffset => OffsetLegs ? (AnimationStep + 2).Modulo(4) : AnimationStep;
             public double IdOffset => Configuration.Id % 2 == 0 ? 0 : 2;
             public bool OffsetLegs = true;
             public Animation Animation = Animation.Idle;
@@ -139,10 +140,12 @@ namespace IngameScript
                 // If the legs should be offset or not, used for animation stuffs
                 OffsetLegs = forwardsDelta != 0;
 
+                if (OffsetLegs)
+                    LastDelta = forwardsDelta;
                 // Update animation step
                 double multiplier = forwardsDelta / Math.Abs(forwardsDelta);
                 Log($"mul: {multiplier}");
-                AnimationStep += delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
+                AnimationStep += (!double.IsNaN(multiplier) ? forwardsDelta : delta * (LastDelta / Math.Abs(LastDelta)) / 2) * Configuration.AnimationSpeed;//delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
                 AnimationStep %= 4; // 0 to 3
             }
 

@@ -69,33 +69,34 @@ namespace IngameScript
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
                 double crouchAdditive = crouch ? -1d : 0;
-                Log($"crouchAdditive: {crouchAdditive}");
+                Log($"crouchAdditive: {crouchAdditive}; isTurn: {Animation == Animation.Turn}");
 
                 double stepHeight = Configuration.StepHeight - .5d;
+                double standingHeight = StandingHeight - .35d;
 
                 double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(
                     // value
-                    cos * (stepHeight + 1) + stepHeight + 2 + StandingHeight + 1.5,
+                    cos * (stepHeight + 1) + .5 + 2 + standingHeight + 1.5,
 
                     // min/max
                     0,
-                    2 + stepHeight + StandingHeight + 1
+                    2 + stepHeight + standingHeight + 1
                 ) + crouchAdditive;
 
                 if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
                 {
                     x = lean;
                     y = MathHelper.Clamp(
-                        cos * (stepHeight + 1) + 2 + stepHeight + StandingHeight + 1,
+                        cos * (stepHeight + 2) + 2 + .5 + standingHeight + 1,
                         0,
-                        2 + stepHeight + StandingHeight + 1);
+                        2 + stepHeight + standingHeight + 1);
                     //y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
                 }
 
-                Log($"xy: {x}, {y}, {maxDistance};;;{StandingHeight}");
+                Log($"xy: {x}, {y}, {maxDistance};;;{standingHeight}");
 
                 return InverseKinematics.CalculateLeg(thighLength, calfLength, x, y);
 
@@ -157,10 +158,18 @@ namespace IngameScript
                     default:
                     case Animation.Crouch:
                     case Animation.Idle:
-                        AnimationWaitTime = 0;
-                        AnimationStep = 0;
-                        leftAngles = CalculateAngles(AnimationStep);
-                        rightAngles = CalculateAngles(AnimationStep);
+                        if ((AnimationStep - 0).Absolute() < .025 || (AnimationStep - 2).Absolute() < .025 || AnimationWaitTime <= 0)
+                        {
+                            AnimationStep = 0;
+                            AnimationWaitTime = 0;
+                        }
+                        else
+                        {
+                            OffsetLegs = true;
+                            Animation = Animation.Walk;
+                        }
+                        leftAngles = CalculateAngles(AnimationStep + (OffsetLegs ? IdOffset : 0));
+                        rightAngles = CalculateAngles(AnimationStepOffset + (OffsetLegs ? IdOffset : 0));
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
                         {
                             lg.Enabled = true;
