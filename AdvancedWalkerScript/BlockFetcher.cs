@@ -42,6 +42,7 @@ namespace IngameScript
             GyroscopeAzimuth, // rotor or gyroscope, yaw
             GyroscopeElevation, // rotor or gyroscope, pitch
             GyroscopeRoll, // rotor or gyroscope, roll
+            GyroscopeStabilization
         }
 
         public enum BlockSide
@@ -108,6 +109,7 @@ namespace IngameScript
                 BlockType.GyroscopeAzimuth,
                 BlockType.GyroscopeElevation,
                 BlockType.GyroscopeRoll,
+                BlockType.GyroscopeStabilization
             };
 
             public static FetchedBlock? ParseBlock(IMyTerminalBlock block)
@@ -164,6 +166,11 @@ namespace IngameScript
                             if (!(block is IMyMotorStator) && !(block is IMyGyro))
                                 break; // Liars!
                             blockType = BlockType.GyroscopeRoll;
+                            break;
+                        case "gg": // g for gyro
+                            if (!(block is IMyGyro))
+                                break; // Liars!
+                            blockType = BlockType.GyroscopeStabilization;
                             break;
                         case "mg":
                         case "lg":

@@ -263,6 +263,7 @@ namespace IngameScript
                     case BlockType.GyroscopeAzimuth:
                     case BlockType.GyroscopeElevation:
                     case BlockType.GyroscopeRoll:
+                    case BlockType.GyroscopeStabilization:
                         stabilizationGyros.Add(new Gyroscope(block));
                         break;
                 }
