@@ -399,8 +399,12 @@ namespace IngameScript
                         force = false;
                         break;
                     case "step":
+                        force = false;
+                        if (arguments.Length > 1)
+                        {
                         force = true;
                         forcedStep = float.Parse(arguments[1]);
+                        }
                         break;
 
                     // set methods //

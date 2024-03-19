@@ -2,6 +2,7 @@
 using Sandbox.ModAPI.Interfaces;
 using System;
 using VRageMath;
+using static IngameScript.Program;
 
 namespace IngameScript
 {
@@ -11,6 +12,13 @@ namespace IngameScript
         {
             return stator.GetProperty("ShareInertiaTensor").AsBool().GetValue(stator);
         }
+    }
+
+    public static class AnimationEnumExtensions
+    {
+        internal static bool IsIdle(this Program.Animation animation) => animation == Program.Animation.Idle;
+        internal static bool IsWalk(this Program.Animation animation) => animation == Program.Animation.Walk || animation == Program.Animation.CrouchWalk;
+        internal static bool IsCrouch(this Program.Animation animation) => animation == Program.Animation.Crouch || animation == Program.Animation.CrouchWalk || animation == Program.Animation.CrouchTurn;
     }
 
     public static class AngleConversions
