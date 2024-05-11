@@ -68,7 +68,7 @@ namespace IngameScript
                 /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
-                double crouchAdditive = crouch ? -1d : 0;
+                double crouchAdditive = crouch ? -.9d : 0;
                 Log($"crouchAdditive: {crouchAdditive}; isTurn: {Animation == Animation.Turn}");
 
                 double stepHeight = Configuration.StepHeight - .5d;
@@ -90,7 +90,7 @@ namespace IngameScript
                 {
                     x = lean;
                     y = MathHelper.Clamp(
-                        cos * (stepHeight + 2) + 2 + .5 + standingHeight + 1,
+                        cos * (stepHeight + 0.5d) + 2 + .5 + standingHeight + 1,
                         0,
                         2 + stepHeight + standingHeight + 1);
                     //y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
@@ -178,6 +178,7 @@ namespace IngameScript
                         break;
                     case Animation.CrouchTurn:
                     case Animation.Turn:
+                        AnimationStep += delta * 2;
                         leftAngles = CalculateAngles(AnimationStep + IdOffset);
                         OffsetLegs = true;
                         rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);

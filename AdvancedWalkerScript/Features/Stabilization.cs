@@ -68,7 +68,7 @@ namespace IngameScript
             Log($"{rollCrossed.Y}");
             Log($"{rollCrossed.Z}");*/
 
-            double pitchDirection = -pitch * 2;
+            double pitchDirection = -pitch * 2 * Math.Sign(Vector3.Dot(forward, plane)); // WRONG: TODO: <<<<
             double rollDirection = roll * 2;
 
             Log($"roll dir: {rollDirection} fpr {rollStators.Count} rotors");
@@ -76,8 +76,12 @@ namespace IngameScript
 
             foreach (var gyro in stabilizationGyros)
             {
-                gyro.Gyro.Roll = (float)-rollDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
-                gyro.Gyro.Yaw = (float)steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)gyro.Configuration.InversedMultiplier;
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeRoll)
+                    gyro.Gyro.Roll = (float)-rollDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeAzimuth)
+                    gyro.Gyro.Yaw = (float)steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)gyro.Configuration.InversedMultiplier;
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeElevation)
+                    gyro.Gyro.Pitch = (float)pitchDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
             }
 
             foreach (var stator in azimuthStators)
@@ -91,7 +95,7 @@ namespace IngameScript
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for elevation/pitch stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                //stator.SetRPM((float)pitchDirection * 60 * (float)stator.Configuration.InversedMultiplier);
+                stator.SetRPM((float)pitchDirection * 60 * (float)stator.Configuration.InversedMultiplier);
                 // TODO
             }
 
