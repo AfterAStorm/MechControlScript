@@ -74,7 +74,7 @@ namespace IngameScript
                 double stepHeight = Configuration.StepHeight - .5d;
                 double standingHeight = StandingHeight - .35d;
 
-                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
+                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) - .35;
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(
@@ -261,7 +261,7 @@ namespace IngameScript
                 rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
                 Log("ChickenWalker (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
                 Log("ChickenWalker (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
-                SetAngles(leftAngles * new LegAngles(1, -1, -1), rightAngles * new LegAngles(-1, 1, 1));
+                SetAngles(leftAngles * new LegAngles(1, -1, 1), rightAngles * new LegAngles(-1, 1, -1));
             }
         }
     }
