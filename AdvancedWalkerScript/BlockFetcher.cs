@@ -123,7 +123,7 @@ namespace IngameScript
 
                     // Parse the type
                     BlockType? blockType = null;
-                    switch (match.Groups[1].Value)
+                    switch (match.Groups[1].Value.Replace("+", "").Replace("-", "")) // the replace is beacuse i cannot regex for some reason D:
                     {
                         case "h":
                             //case "hip":
@@ -151,13 +151,13 @@ namespace IngameScript
                             blockType = BlockType.TorsoTwist;
                             break;
                         case "gy": // y for yaw
-                        case "ga":
+                            //case "ga":
                             if (!(block is IMyMotorStator) && !(block is IMyGyro))
                                 break; // Liars!
                             blockType = BlockType.GyroscopeAzimuth;
                             break;
                         case "gp": // p for pitch
-                        case "ge":
+                            //case "ge":
                             if (!(block is IMyMotorStator) && !(block is IMyGyro))
                                 break; // Liars!
                             blockType = BlockType.GyroscopeElevation;
@@ -209,6 +209,10 @@ namespace IngameScript
                     MyIni ini = new MyIni();
                     if (!ini.TryParse(block.CustomData))
                         ini = null;
+
+                    // require a + or -, guh
+                    if (!(match.Groups[4].Value.Equals("-") || match.Groups[1].Value.EndsWith("-")) && !(match.Groups[4].Value.Equals("+") || match.Groups[1].Value.EndsWith("+")))
+                        continue;
 
                     return new FetchedBlock()
                     {

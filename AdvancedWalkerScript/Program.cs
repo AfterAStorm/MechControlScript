@@ -474,6 +474,8 @@ namespace IngameScript
 
             Log($"turnValue: {turnValue}");
             Log($"azimuthStators: {azimuthStators.Count}");
+            Log($"elevationStators: {elevationStators.Count}");
+            Log($"rollStators: {rollStators.Count}");
 
             bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
