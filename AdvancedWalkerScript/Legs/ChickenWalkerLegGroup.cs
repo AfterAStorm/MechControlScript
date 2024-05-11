@@ -68,7 +68,7 @@ namespace IngameScript
                 /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
-                double crouchAdditive = crouch ? -1d : 0;
+                double crouchAdditive = -MathHelper.Clamp(CrouchWaitTime, 0, .9);//crouch ? -MathHelper.Clamp(CrouchWaitTime, 0, .9) : 0; //-.9d : 0;
                 Log($"crouchAdditive: {crouchAdditive}; isTurn: {Animation == Animation.Turn}");
 
                 double stepHeight = Configuration.StepHeight - .5d;
@@ -90,10 +90,16 @@ namespace IngameScript
                 {
                     x = lean;
                     y = MathHelper.Clamp(
-                        cos * (stepHeight + 2) + 2 + .5 + standingHeight + 1,
+                        cos * (stepHeight + 0.5d) + 2 + .5 + standingHeight + 1,
                         0,
                         2 + stepHeight + standingHeight + 1);
                     //y = MathHelper.Clamp(sin, double.MinValue, 0) * (maxDistance) + maxDistance;
+                }
+
+                if (jumping && !crouch)
+                {
+                    x = lean;
+                    y = thighLength + calfLength;
                 }
 
                 Log($"xy: {x}, {y}, {maxDistance};;;{standingHeight}");
@@ -152,6 +158,12 @@ namespace IngameScript
                 base.Update(forwardsDelta, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
 
+                if (!Animation.IsCrouch())
+                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - delta * 2);
+                else
+                    CrouchWaitTime = Math.Min(.9d, CrouchWaitTime + delta * 2);
+                Log($"CrouchWaitTime: {CrouchWaitTime}");
+
                 LegAngles leftAngles, rightAngles;
                 switch (Animation)
                 {
@@ -178,6 +190,7 @@ namespace IngameScript
                         break;
                     case Animation.CrouchTurn:
                     case Animation.Turn:
+                        AnimationStep += delta * 2;
                         leftAngles = CalculateAngles(AnimationStep + IdOffset);
                         OffsetLegs = true;
                         rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);

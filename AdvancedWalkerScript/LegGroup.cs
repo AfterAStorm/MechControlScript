@@ -67,6 +67,7 @@ namespace IngameScript
             protected double LastDelta = 1;
             public double AnimationStep = 0; // pff, who needes getters and setters?
             public double AnimationStepOffset => OffsetLegs ? (AnimationStep + 2).Modulo(4) : AnimationStep;
+            public double CrouchWaitTime = 0; // extra property for stuffs that needs it
             public double IdOffset => Configuration.Id % 2 == 0 ? 0 : 2;
             public bool OffsetLegs = true;
             public Animation Animation = Animation.Idle;

@@ -90,6 +90,7 @@ namespace IngameScript
 
             public IMyGyro Gyro;
             public JointConfiguration Configuration;
+            public BlockType GyroType;
 
             public Gyroscope(IMyGyro gyro, JointConfiguration? configuration = null)
             {
@@ -99,6 +100,7 @@ namespace IngameScript
 
             public Gyroscope(FetchedBlock block)
             {
+                GyroType = block.Type;
                 Gyro = block.Block as IMyGyro;
                 Configuration = new JointConfiguration()
                 {

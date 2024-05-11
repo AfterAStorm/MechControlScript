@@ -75,25 +75,12 @@ namespace IngameScript
 
         // - Walking
 
-        static float WalkCycleSpeed = 3f;
+        static float WalkCycleSpeed = 2f;//3f;
         static bool AutoHalt = true; // if it should slow down when there is no one in the cockpit holding a direction
 
         // - Stablization / Steering
 
         static double SteeringSensitivity = 5; // x / 60th speed, specifies rotor/gyro RPM divided by 60, so 30 is half max power/rpm
-
-        /*static bool GyroscopeSteering = true; // if we should change the override of gyroscopes to turn (yaw)
-        static string GyroscopeNames = "Mech Steering"; // the name of the gyroscopes
-        static bool GyroscopesInverted = false; // should invert the yaw
-        static bool GyroscopesDisableOverride = false; // when not turning, should we turn off override?
-
-        static bool GyroscopeStabilization = true; // if we should use gyroscopes to limit roll/pitch
-        static string GyroscopeStabilizationNames = "Mech Stabilization";
-        static bool GyroscopeStabilizationInverseRoll = false; // if we should inverse roll correction
-        static bool GyroscopeStabilizationInversePitch = false; // if we should inverse pitch correction
-
-        static double StabilizationRollThreshold = 5d; // if it goes past x degrees it will attempt to return it to between the threshold
-        static double StabilizationPitchThreshold = 10d; // if it goes past x degrees it will attempt to return it to between the threshold*/
 
         // - Controls
 
@@ -402,14 +389,13 @@ namespace IngameScript
                         force = false;
                         if (arguments.Length > 1)
                         {
-                        force = true;
-                        forcedStep = float.Parse(arguments[1]);
+                            force = true;
+                            forcedStep = float.Parse(arguments[1]);
                         }
                         break;
 
                     // set methods //
                     case "speed":
-                    case "walksped":
                         WalkCycleSpeed = float.Parse(arguments[1]);
                         break;
 
@@ -419,22 +405,27 @@ namespace IngameScript
                         AccelerationLean = value;
                         break;
 
+                    case "standinglean":
+                    case "standlean":
+                        StandingLean = float.Parse(arguments[1]);
+                        break;
+
+                    case "accelerationlean":
+                    case "accellean":
+                        StandingLean = float.Parse(arguments[1]);
+                        break;
+
                     case "steplength":
-                    case "sl":
                         double stepLength = double.Parse(arguments[1]);
                         foreach (LegGroup g in Legs.Values)
                             g.Configuration.StepLength = stepLength;
                         break;
 
                     case "autohalt":
-                    case "ah":
                         AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
                         break;
 
-                    case "torsotwist":
-                    case "torso":
                     case "twist":
-                    case "tt":
                         targetTorsoTwistAngle = arguments.Length > 1 ? float.Parse(arguments[1]) : 0;
                         break;
                 }
