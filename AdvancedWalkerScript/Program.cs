@@ -131,6 +131,8 @@ namespace IngameScript
 
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
+        double maxRuntime = 0;
+        int lastInstructions = 0;
 
         bool force = false;
         float forcedStep = 0;
@@ -150,13 +152,15 @@ namespace IngameScript
         List<IMyGyro> steeringGyros = new List<IMyGyro>();
         List<Gyroscope> stabilizationGyros = new List<Gyroscope>();
         List<Joint> torsoTwistStators = new List<Joint>();
-        List<Joint> azimuthStators = new List<Joint>();
-        List<Joint> elevationStators = new List<Joint>();
-        List<Joint> rollStators = new List<Joint>();
+        List<RotorGyroscope> azimuthStators = new List<RotorGyroscope>();
+        List<RotorGyroscope> elevationStators = new List<RotorGyroscope>();
+        List<RotorGyroscope> rollStators = new List<RotorGyroscope>();
         List<Gyroscope> azimuthGyros = new List<Gyroscope>();
         List<IMyShipController> cockpits = new List<IMyShipController>();
         bool crouched = false;
         bool crouchOverride = false; // argument crouch
+        public static bool jumping = false;
+        double jumpCooldown = 0;
 
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
@@ -230,15 +234,15 @@ namespace IngameScript
                         torsoTwistStators.Add(new Joint(block));
                         break;
                     case BlockType.GyroscopeAzimuth:
-                        azimuthStators.Add(new Joint(block));
+                        azimuthStators.Add(new RotorGyroscope(block));
                         break;
                     case BlockType.GyroscopeElevation:
-                        elevationStators.Add(new Joint(block));
+                        elevationStators.Add(new RotorGyroscope(block));
                         break;
                     case BlockType.GyroscopeRoll:
                         if (block.Side != BlockSide.Right)
                             return; // since r is keyword, we have to look for "g" then block side "r" :/
-                        rollStators.Add(new Joint(block));
+                        rollStators.Add(new RotorGyroscope(block));
                         break;
                 }
             }
@@ -470,6 +474,24 @@ namespace IngameScript
 
             bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
+            if (crouched)
+                jumping = false;
+
+            if (moveInput.Y > 0)
+            {
+                jumping = true;
+                crouched = true;
+                jumpCooldown = .5d;
+            }
+            else if (jumpCooldown > 0)
+            {
+                jumpCooldown = Math.Max(0, jumpCooldown - delta);
+                if (jumpCooldown <= 0)
+                    jumping = false;
+            }
+
+            Log($"jumping: {jumping}");
+            Log($"crouched: {crouched}");
 
             Vector3 movementDirection = (moveInput - movement) * .5f;
 
@@ -491,6 +513,7 @@ namespace IngameScript
             Log(rotationInput.ToString());
             Log(movement.ToString());
 
+            double originalDelta = delta;
             Log($"Before delta: {delta}");
             delta *= -movement.Z; // negative because -Z is forwards!
             Log($"After delta: {delta}");
@@ -514,7 +537,8 @@ namespace IngameScript
                     leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
 
             foreach (LegGroup leg in Legs.Values)
-                leg.Update(delta, Runtime.TimeSinceLastRun.TotalSeconds);
+                leg.Update(delta, originalDelta);
+            lastInstructions = Runtime.CurrentInstructionCount;
         }
     }
 }

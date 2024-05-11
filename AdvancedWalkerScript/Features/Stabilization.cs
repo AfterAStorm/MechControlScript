@@ -22,6 +22,17 @@ namespace IngameScript
 {
     partial class Program
     {
+        Vector3 ProjectOnPlane(Vector3 a, Vector3 b)
+        {
+            Vector3 projection = (Vector3.Dot(a, b) / b.Length()) * (b / b.Length());
+            return a - projection;
+        }
+
+        double AngleBetween(Vector3 a, Vector3 b)
+        {
+            return Math.Atan2(Vector3.Cross(a, b).Length(), Vector3.Dot(a, b));
+        }
+
         /// <summary>
         /// Stablization handling
         /// </summary>
@@ -37,7 +48,7 @@ namespace IngameScript
             }
             Vector3D gravity = reference.GetTotalGravity();
             Vector3D up = reference.WorldMatrix.Up;
-            Vector3D forward = reference.WorldMatrix.Forward;
+            Vector3D forward = reference.WorldMatrix.Forward.Normalized();
             Vector3D back = reference.WorldMatrix.Backward;
             Vector3D right = reference.WorldMatrix.Right;
 
@@ -52,12 +63,14 @@ namespace IngameScript
             double roll = Vector3D.Angle(right, gravityAlignedRight) * Math.Sign(rollDot);*/
 
             Vector3D plane = forward - (Vector3D.Dot(forward, gravity) / gravity.Length()) * (gravity / gravity.Length());
-            double pitch = Math.Atan2(Vector3D.Cross(forward, plane).Length(), Vector3.Dot(forward, plane));
+            double pitch = AngleBetween(forward, ProjectOnPlane(forward, gravity.Normalized())); //Math.Atan2(Vector3D.Cross(forward, plane).Normalize(), Vector3.Dot(forward, plane));
             plane = right - (Vector3D.Dot(right, gravity) / gravity.Length()) * (gravity / gravity.Length());
-            double roll = Math.Atan2(Vector3D.Cross(right, plane).Length(), Vector3.Dot(right, plane)) * Math.Sign(Vector3.Dot(right, gravity));
-            Log($"pitch?: {pitch}");
-            Log($"roll?: {roll}");
+            double roll = Math.Atan2(Vector3D.Cross(right, plane).Normalize(), Vector3.Dot(right, plane)) * Math.Sign(Vector3.Dot(right, gravity));
 
+            pitch = pitch * Math.Sign(forward.Dot(gravity.Normalized()));
+
+            Log($"pitch?: {pitch} >< {forward.Dot(gravity.Normalized())}");
+            Log($"roll?: {roll}");
 
 
             /*Vector3D crossed = gravity.Normalized().Cross(forward);
@@ -68,42 +81,63 @@ namespace IngameScript
             Log($"{rollCrossed.Y}");
             Log($"{rollCrossed.Z}");*/
 
-            double pitchDirection = -pitch * 2 * Math.Sign(Vector3.Dot(forward, plane)); // WRONG: TODO: <<<<
+            double pitchDirection = pitch * 2;
             double rollDirection = roll * 2;
 
             Log($"roll dir: {rollDirection} fpr {rollStators.Count} rotors");
             Log($"pitc dir: {pitchDirection} fpr {elevationStators.Count} rotors");
 
-            foreach (var gyro in stabilizationGyros)
-            {
-                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeRoll)
-                    gyro.Gyro.Roll = (float)-rollDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
-                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeAzimuth)
-                    gyro.Gyro.Yaw = (float)steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)gyro.Configuration.InversedMultiplier;
-                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeElevation)
-                    gyro.Gyro.Pitch = (float)pitchDirection * 60 * (float)gyro.Configuration.InversedMultiplier;
-            }
-
+            float azimuthValue = -steerValue * ((float)SteeringSensitivity / 60f) * 60f;
+            bool isTurning = azimuthValue.Absolute() > 0;
             foreach (var stator in azimuthStators)
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for azimuth/yaw stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM(steerValue * ((float)SteeringSensitivity / 60f) * 60f * (float)stator.Configuration.InversedMultiplier);
+                foreach (var gyro in stator.SubGyros)
+                    gyro.Enabled = isTurning;
+
+                stator.SetRPM(azimuthValue * (float)stator.Configuration.InversedMultiplier);
             }
 
+            float elevationValue = (float)pitchDirection * 60;
             foreach (var stator in elevationStators)
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for elevation/pitch stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM((float)pitchDirection * 60 * (float)stator.Configuration.InversedMultiplier);
+                foreach (var gyro in stator.SubGyros)
+                    gyro.Enabled = /*isTurning ?*/ elevationValue.Absolute() > 0.5f;// : true;
+
+                stator.SetRPM(elevationValue * (float)stator.Configuration.InversedMultiplier);
                 // TODO
             }
 
+            float rollValue = (float)rollDirection * 60f;
             foreach (var stator in rollStators)
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for roll stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                stator.SetRPM((float)rollDirection * 60f * (float)stator.Configuration.InversedMultiplier);
+                foreach (var gyro in stator.SubGyros)
+                    gyro.Enabled = /*isTurning ?*/ rollValue.Absolute() > 0.1f;// : true;
+
+                stator.SetRPM(rollValue * (float)stator.Configuration.InversedMultiplier);
+            }
+
+            foreach (var gyro in stabilizationGyros)
+            {
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeRoll)
+                    gyro.Gyro.Roll = rollValue * (float)gyro.Configuration.InversedMultiplier;
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeAzimuth)
+                    gyro.Gyro.Yaw = azimuthValue * (float)gyro.Configuration.InversedMultiplier;
+                if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeElevation)
+                    gyro.Gyro.Pitch = elevationValue * (float)gyro.Configuration.InversedMultiplier;
+
+                if (gyro.GyroType == BlockType.GyroscopeAzimuth && !isTurning)
+                    gyro.Gyro.Enabled = false;
+                else
+                    gyro.Gyro.Enabled = /*isTurning ?*/
+                        gyro.Gyro.Roll.Absolute() > 0.1f ||
+                        gyro.Gyro.Yaw.Absolute() > 0.1f ||
+                        gyro.Gyro.Pitch.Absolute() > 0.1f;// : true;
             }
         }
     }

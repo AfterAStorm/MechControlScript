@@ -85,6 +85,7 @@ namespace IngameScript
 
         }
 
+        public class RotorGyroscope : Joint
         public class Gyroscope
         {
 
