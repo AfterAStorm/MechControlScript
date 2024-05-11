@@ -27,20 +27,31 @@ namespace IngameScript
             public double HipDegrees;
             public double KneeDegrees;
             public double FeetDegrees;
+            public double QuadDegrees;
 
             public double HipRadians => HipDegrees.ToRadians();
             public double KneeRadians => KneeRadians.ToRadians();
             public double FeetRadians => FeetRadians.ToRadians();
+            public double QuadRadians => QuadDegrees.ToRadians();
+
+            public LegAngles(double hip, double knee, double feet, double quad)
+            {
+                HipDegrees = hip;
+                KneeDegrees = knee;
+                FeetDegrees = feet;
+                QuadDegrees = quad;
+            }
 
             public LegAngles(double hip, double knee, double feet)
             {
                 HipDegrees = hip;
                 KneeDegrees = knee;
                 FeetDegrees = feet;
+                QuadDegrees = 0;
             }
 
-            public static LegAngles operator +(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees + right.HipDegrees, left.KneeDegrees + right.KneeDegrees, left.FeetDegrees + right.FeetDegrees);
-            public static LegAngles operator *(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees * right.HipDegrees, left.KneeDegrees * right.KneeDegrees, left.FeetDegrees * right.FeetDegrees);
+            public static LegAngles operator +(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees + right.HipDegrees, left.KneeDegrees + right.KneeDegrees, left.FeetDegrees + right.FeetDegrees, left.QuadDegrees + right.QuadDegrees);
+            public static LegAngles operator *(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees * right.HipDegrees, left.KneeDegrees * right.KneeDegrees, left.FeetDegrees * right.FeetDegrees, left.QuadDegrees + right.QuadDegrees);
         }
 
         public class LegGroup
@@ -59,6 +70,9 @@ namespace IngameScript
             public List<Joint> LeftFootStators = new List<Joint>();
             public List<Joint> RightFootStators = new List<Joint>();
 
+            public List<Joint> LeftQuadStators = new List<Joint>();
+            public List<Joint> RightQuadStators = new List<Joint>();
+
             public List<IMyLandingGear> LeftGears = new List<IMyLandingGear>();
             public List<IMyLandingGear> RightGears = new List<IMyLandingGear>();
 
@@ -76,6 +90,7 @@ namespace IngameScript
             protected double HipInversedMultiplier = 1;
             protected double KneeInversedMultiplier = 1;
             protected double FeetInversedMultiplier = 1;
+            protected double QuadInversedMultiplier = 1;
 
             #endregion
 
@@ -100,12 +115,13 @@ namespace IngameScript
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
             }
 
-            protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees)
+            protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double leftQuadDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees, double rightQuadDegrees)
             {
                 // The code documents itself!
                 SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),     Configuration.HipOffsets);
                 SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets);
                 SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
+                SetAnglesOf(LeftQuadStators,    RightQuadStators,   (leftQuadDegrees * FeetInversedMultiplier),     (rightQuadDegrees * FeetInversedMultiplier),   Configuration.QuadOffsets);
             }
 
             protected virtual void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
@@ -114,9 +130,11 @@ namespace IngameScript
                     leftAngles.HipDegrees,
                     leftAngles.KneeDegrees,
                     leftAngles.FeetDegrees,
+                    leftAngles.QuadDegrees,
                     rightAngles.HipDegrees,
                     rightAngles.KneeDegrees,
-                    rightAngles.FeetDegrees
+                    rightAngles.FeetDegrees,
+                    rightAngles.QuadDegrees
                 );
             }
 
@@ -137,6 +155,7 @@ namespace IngameScript
                 HipInversedMultiplier = Configuration.HipsInverted ? -1 : 1;
                 KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
                 FeetInversedMultiplier = Configuration.FeetInverted ? -1 : 1;
+                QuadInversedMultiplier = Configuration.QuadInverted ? -1 : 1;
 
                 // If the legs should be offset or not, used for animation stuffs
                 OffsetLegs = forwardsDelta != 0;

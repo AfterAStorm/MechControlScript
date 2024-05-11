@@ -55,8 +55,8 @@ namespace IngameScript
             private static MyIni ini;
 
             public byte LegType;
-            public bool HipsInverted, KneesInverted, FeetInverted;
-            public double HipOffsets, KneeOffsets, FootOffsets;
+            public bool HipsInverted, KneesInverted, FeetInverted, QuadInverted;
+            public double HipOffsets, KneeOffsets, FootOffsets, QuadOffsets;
 
             public double ThighLength, CalfLength;
 

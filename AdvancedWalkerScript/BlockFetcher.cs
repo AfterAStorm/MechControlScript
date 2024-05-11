@@ -35,6 +35,7 @@ namespace IngameScript
             Hip,
             Knee,
             Foot,
+            Quad,
 
             // Misc
             LandingGear,
@@ -145,6 +146,11 @@ namespace IngameScript
                                 break; // Liars!
                             blockType = BlockType.Foot;
                             break;
+                        case "q":
+                            if (!(block is IMyMotorStator))
+                                break; // Liars!
+                            blockType = BlockType.Quad;
+                            break;
                         case "tt":
                             if (!(block is IMyMotorStator))
                                 break; // Liars!
@@ -238,6 +244,7 @@ namespace IngameScript
                     case BlockType.Hip:
                     case BlockType.Knee:
                     case BlockType.Foot: // if its a joint, create it and add it appropriately
+                    case BlockType.Quad:
                         Joint joint = new Joint(block);
                         switch (block.Type)
                         {
@@ -258,6 +265,12 @@ namespace IngameScript
                                     leg.LeftFootStators.Add(joint);
                                 else
                                     leg.RightFootStators.Add(joint);
+                                break;
+                            case BlockType.Quad:
+                                if (block.Side == BlockSide.Left)
+                                    leg.LeftQuadStators.Add(joint);
+                                else
+                                    leg.RightQuadStators.Add(joint);
                                 break;
                         }
                         break;
