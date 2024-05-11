@@ -62,13 +62,18 @@ namespace IngameScript
                 };
             }
 
-            public float GetRPMFor(double angle)
+            public double ClampDegrees(double angle)
             {
                 double current = Stator.Angle.ToDegrees();
                 if (IsHinge)
-                    angle = angle.ClampHinge() - current; // lock between -90 to 90; aka angle = angle - current
+                    return angle.ClampHinge() - current; // lock between -90 to 90; aka angle = angle - current
                 else
-                    angle = (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D
+                    return (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D*/
+            }
+
+            public float GetRPMFor(double angle)
+            {
+                angle = ClampDegrees(angle);
 
                 return (float)angle.Clamp(-MaxRPM, MaxRPM);
             }
@@ -81,6 +86,7 @@ namespace IngameScript
             public void SetAngle(double angle)
             {
                 Stator.TargetVelocityRPM = GetRPMFor(angle);
+                //Stator.RotorLock = (Stator.Angle - ClampDegrees(angle)).Absolute() < 2d;
             }
 
         }
