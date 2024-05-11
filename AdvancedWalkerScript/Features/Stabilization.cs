@@ -127,7 +127,7 @@ namespace IngameScript
                 if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeRoll)
                     gyro.Gyro.Roll = rollValue * (float)gyro.Configuration.InversedMultiplier;
                 if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeAzimuth)
-                    gyro.Gyro.Yaw = azimuthValue * (float)gyro.Configuration.InversedMultiplier;
+                    gyro.Gyro.Yaw = -azimuthValue * (float)gyro.Configuration.InversedMultiplier;
                 if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeElevation)
                     gyro.Gyro.Pitch = elevationValue * (float)gyro.Configuration.InversedMultiplier;
 

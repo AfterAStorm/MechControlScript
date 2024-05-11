@@ -164,6 +164,7 @@ namespace IngameScript
 
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
+        int turnOverride = 0;
         double targetTorsoTwistAngle = -1;
 
         static void Log(params object[] messages)
@@ -378,14 +379,14 @@ namespace IngameScript
                         break;
                     case "crouch": // Toggle crouch (overrides the cockpit [c]), argument for "on" or "true" and "off" or "false", off and false aren't checked but infered
                         if (arguments.Length > 1)
-                            crouchOverride = arguments[1].Equals("on") || argument[1].Equals("true");
+                            crouchOverride = arguments[1].Equals("on") || arguments[1].Equals("true");
                         else
                             crouchOverride = !crouchOverride; // crouchOverride is for this specifically, because the normal crouched variable is set based on
                         // the MoveIndicator (then gets set to this value if true)
                         break;
                     case "walk": // b or backwards to go backwards, forward is infered and default
                         if (arguments.Length > 1)
-                            movementOverride = argument[1].Equals("b") || argument[1].Equals("backwards") ? Vector3.Backward : Vector3.Forward;
+                            movementOverride = arguments[1].Equals("b") || arguments[1].Equals("backwards") ? Vector3.Backward : Vector3.Forward;
                         else
                             movementOverride = Vector3.Forward;
                         break;
@@ -400,6 +401,13 @@ namespace IngameScript
                             force = true;
                             forcedStep = float.Parse(arguments[1]);
                         }
+                        break;
+
+                    case "turn":
+                        if (arguments.Length > 1)
+                            turnOverride = int.Parse(arguments[1]);
+                        else
+                            turnOverride = 0;
                         break;
 
                     // set methods //
@@ -427,6 +435,12 @@ namespace IngameScript
                         double stepLength = double.Parse(arguments[1]);
                         foreach (LegGroup g in Legs.Values)
                             g.Configuration.StepLength = stepLength;
+                        break;
+
+                    case "stepheight":
+                        double stepHeight = double.Parse(arguments[1]);
+                        foreach (LegGroup g in Legs.Values)
+                            g.Configuration.StepHeight = stepHeight;
                         break;
 
                     case "autohalt":
@@ -467,7 +481,7 @@ namespace IngameScript
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
 
-            float turnValue = ReverseTurnControls ? moveInput.X : rollInput;
+            float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
             HandleStabilization(turnValue);
             HandleTorsoTwist(rotationInput.Y);
 
