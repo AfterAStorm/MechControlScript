@@ -86,6 +86,18 @@ namespace IngameScript
         }
 
         public class RotorGyroscope : Joint
+        {
+            public RotorGyroscope(FetchedBlock block) : base(block)
+            {
+                foreach (IMyGyro gyro in BlockFinder.GetBlocksOfType<IMyGyro>((gyro) => gyro.CubeGrid == Stator.TopGrid))
+                {
+                    SubGyros.Add(gyro);
+                }
+            }
+
+            public List<IMyGyro> SubGyros = new List<IMyGyro>();
+        }
+
         public class Gyroscope
         {
 

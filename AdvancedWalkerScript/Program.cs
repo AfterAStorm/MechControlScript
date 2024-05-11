@@ -340,13 +340,17 @@ namespace IngameScript
 
             averageRuntimes[averageRuntimeIndex] = lastRuntime;
             averageRuntimeIndex = (averageRuntimeIndex + 1) % averageRuntimes.Length;
+            maxRuntime = Math.Max(maxRuntime, lastRuntime);
 
             // Detailed Info - alpha red green blue
             Echo("[Color=#13ebca00]Advanced Walker Script[/Color]");
             Echo($"{Legs.Count} leg group{(Legs.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last       Tick: {lastRuntime}ms");
-            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples\n");
+            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
+            Echo($"Max        Tick: {maxRuntime:.03}ms");
+            Echo($"Last Instructions: {lastInstructions}");
+            Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:.03}%\n");
 
             // Some Setup Warnings
             if (cockpits.Count <= 0)
