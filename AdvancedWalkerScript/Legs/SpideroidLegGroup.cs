@@ -25,7 +25,7 @@ namespace IngameScript
     {
         public class SpideroidLegGroup : LegGroup
         {
-            protected LegAngles CalculateAngles(double step, bool left)
+            protected LegAngles CalculateAngles(double step, bool left, bool invertedCrouch = false)
             {
                 step = step.Modulo(4);
 
@@ -35,9 +35,20 @@ namespace IngameScript
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
-                angles.HipDegrees = sin * (10 + 5 * Configuration.StepLength) * (left ? -1 : 1);
+                double crouchKneeOffset = -45 * CrouchWaitTime;
+                double crouchFootOffset = -35 * CrouchWaitTime;
+
+                /*angles.HipDegrees = sin * (10 + 5 * Configuration.StepLength) * (left ? -1 : 1);
                 angles.KneeDegrees = 50 + (cos) * 15;
-                angles.FeetDegrees = 80 - (cos) * 10;
+                angles.FeetDegrees = 80 - (cos) * 10;*/
+
+                Log("Is Turn:" + Animation.IsTurn().ToString());
+                angles.HipDegrees  = sin * (10 + 5 * Configuration.StepLength) * (left ? -1 : 1) - (CrouchWaitTime * Configuration.HipOffsets * .5 * (invertedCrouch ? -1 : 1));
+                if (Animation.IsTurn())
+                    angles.HipDegrees = 0;
+                angles.KneeDegrees = 40 + crouchKneeOffset + (cos) * 15;
+                angles.FeetDegrees = 65 - crouchFootOffset - (cos) * 10;
+                angles.QuadDegrees = 180 - angles.KneeDegrees - angles.FeetDegrees;
 
                 return angles;
             }
@@ -47,6 +58,11 @@ namespace IngameScript
                 base.Update(forwardsDelta, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
 
+                if (!Animation.IsCrouch())
+                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - delta * 30);//1.5);
+                else
+                    CrouchWaitTime = Math.Min(1, CrouchWaitTime + delta * 30);//1.5);
+
                 LegAngles leftAngles, rightAngles;
                 switch (Animation)
                 {
@@ -55,12 +71,14 @@ namespace IngameScript
                     case Animation.Idle:
                         AnimationStep = 0;
                         leftAngles = CalculateAngles(AnimationStep, false);
-                        rightAngles = CalculateAngles(AnimationStepOffset, false);
+                        rightAngles = CalculateAngles(AnimationStep, false, true);
                         break;
                     case Animation.CrouchTurn:
                     case Animation.Turn:
-                        leftAngles = CalculateAngles(AnimationStep, true);
-                        rightAngles = CalculateAngles(AnimationStepOffset, false);
+                        AnimationStep += delta;
+                        OffsetLegs = true;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset, true);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset, false);
                         break;
                     case Animation.CrouchWalk:
                     case Animation.Walk:
@@ -71,7 +89,7 @@ namespace IngameScript
 
                 Log("Spideroid (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
                 Log("Spideroid (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
-                SetAngles(leftAngles * new LegAngles(1, 1, 1), rightAngles * new LegAngles(1, 1, 1));
+                SetAngles(leftAngles * new LegAngles(1, 1, 1, 1), rightAngles * new LegAngles(1, 1, 1, 1));
             }
 
             protected override void SetAnglesOf(List<Joint> leftStators, List<Joint> rightStators, double leftAngle, double rightAngle, double offset)

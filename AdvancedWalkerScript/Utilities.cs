@@ -16,9 +16,10 @@ namespace IngameScript
 
     public static class AnimationEnumExtensions
     {
-        internal static bool IsIdle(this Program.Animation animation) => animation == Program.Animation.Idle;
+        internal static bool IsIdle(this Program.Animation animation) => animation == Program.Animation.Idle || animation == Program.Animation.Crouch;
         internal static bool IsWalk(this Program.Animation animation) => animation == Program.Animation.Walk || animation == Program.Animation.CrouchWalk;
         internal static bool IsCrouch(this Program.Animation animation) => animation == Program.Animation.Crouch || animation == Program.Animation.CrouchWalk || animation == Program.Animation.CrouchTurn;
+        internal static bool IsTurn(this Program.Animation animation) => animation == Program.Animation.Turn || animation == Program.Animation.CrouchTurn;
     }
 
     public static class AngleConversions

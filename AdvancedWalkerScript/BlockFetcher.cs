@@ -209,7 +209,7 @@ namespace IngameScript
                     // Parse the group it's in
                     bool parsed = int.TryParse(match.Groups[3].Value, out parsedId);
                     if (!parsed) // if it fails it might output zero anyway, i'm not sure
-                        parsedId = 0;
+                        parsedId = 1;
 
                     // Parse the ini
                     MyIni ini = new MyIni();

@@ -74,7 +74,7 @@ namespace IngameScript
                 double stepHeight = Configuration.StepHeight - .5d;
                 double standingHeight = StandingHeight - .35d;
 
-                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) - .35;
+                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) + .3;
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(

@@ -162,6 +162,8 @@ namespace IngameScript
         public static bool jumping = false;
         double jumpCooldown = 0;
 
+        public static bool stepEndedOn0 = true;
+
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
         int turnOverride = 0;
@@ -552,12 +554,37 @@ namespace IngameScript
                 foreach (LegGroup leg in Legs.Values)
                     leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else
+            {
                 foreach (LegGroup leg in Legs.Values)
+                {
+                    bool wasIdle = leg.Animation.IsIdle();
                     leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
+                    /*if (wasIdle && !stepEndedOn0)
+                    {
+                        Log("AAAAAAAAAAAAAAAAAAAAA\nAAAAAAAAA\nAAAAAAAAAAA");
+                        leg.Update(2, 2);
+                        did = true;
+                    }*/
+                }
+            }
+            if (Legs.Count > 0)
+            {
+                LegGroup first = Legs.First().Value;
+                if (first.AnimationStep != 0)
+                {
+                    stepEndedOn0 = first.AnimationStep > 3.5d || first.AnimationStep < .5d;
+                    xxx = first.AnimationStep;
+                }
+            }
+            Log($"xxx: {xxx}");
+            Log($"AstepEndedOn0: {stepEndedOn0}");
+            Log($"Did: {did.ToString()}");
 
             foreach (LegGroup leg in Legs.Values)
                 leg.Update(delta, originalDelta);
             lastInstructions = Runtime.CurrentInstructionCount;
         }
+        double xxx;
+        bool did;
     }
 }
