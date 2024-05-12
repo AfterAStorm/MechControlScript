@@ -43,7 +43,7 @@ namespace IngameScript
         string StatusLCDName = "Mech Status"; // based on the Name of the block!
 
         bool UseCockpitLCDs     = true; // should cockpits show the leds instead?
-        int IntegrityLEDNumber  = 2; // starting at one, if the cockpit has more than one screen you can change it here
+        int IntegrityLEDNumber  = 1; // starting at one, if the cockpit has more than one screen you can change it here
         int StatusLEDNumber     = 3; // set to zero to disable
 
         // - Mech
@@ -156,7 +156,7 @@ namespace IngameScript
         List<RotorGyroscope> elevationStators = new List<RotorGyroscope>();
         List<RotorGyroscope> rollStators = new List<RotorGyroscope>();
         List<Gyroscope> azimuthGyros = new List<Gyroscope>();
-        List<IMyShipController> cockpits = new List<IMyShipController>();
+        public static List<IMyShipController> cockpits = new List<IMyShipController>();
         bool crouched = false;
         bool crouchOverride = false; // argument crouch
         public static bool jumping = false;
@@ -462,6 +462,8 @@ namespace IngameScript
             if (!updateSource.HasFlag(UpdateType.Update1))
                 return;
 
+            debug?.WriteText(""); // clear
+            Log("MAIN LOOP");
             // Screens
             integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
             integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
@@ -478,8 +480,6 @@ namespace IngameScript
             Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw // Mouse
             float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered) // Q + E
 
-            debug?.WriteText(""); // clear
-            Log("MAIN LOOP");
 
             float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
             HandleStabilization(turnValue);
@@ -535,6 +535,7 @@ namespace IngameScript
             Log($"Before delta: {delta}");
             delta *= -movement.Z; // negative because -Z is forwards!
             Log($"After delta: {delta}");
+
 
             if (force)
             {
