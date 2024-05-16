@@ -68,7 +68,7 @@ namespace IngameScript
                 /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
-                double crouchAdditive = -MathHelper.Clamp(CrouchWaitTime, 0, .9);//crouch ? -MathHelper.Clamp(CrouchWaitTime, 0, .9) : 0; //-.9d : 0;
+                double crouchAdditive = -.9 * CrouchWaitTime;//crouch ? -MathHelper.Clamp(CrouchWaitTime, 0, .9) : 0; //-.9d : 0;
                 Log($"crouchAdditive: {crouchAdditive}; isTurn: {Animation == Animation.Turn}");
 
                 double stepHeight = Configuration.StepHeight - .5d;
@@ -153,15 +153,11 @@ namespace IngameScript
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
-            public override void Update(double forwardsDelta, double delta)
+            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
-                base.Update(forwardsDelta, delta);
+                double forwardsDelta = forwardsDeltaVec.Z;
+                base.Update(forwardsDeltaVec, movementVector, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
-
-                if (!Animation.IsCrouch())
-                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - delta * 2);
-                else
-                    CrouchWaitTime = Math.Min(.9d, CrouchWaitTime + delta * 2);
                 Log($"CrouchWaitTime: {CrouchWaitTime}");
 
                 LegAngles leftAngles, rightAngles;

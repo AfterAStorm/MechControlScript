@@ -53,15 +53,10 @@ namespace IngameScript
                 return angles;
             }
 
-            public override void Update(double forwardsDelta, double delta)
+            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
-                base.Update(forwardsDelta, delta);
+                base.Update(forwardsDeltaVec, movementVector, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
-
-                if (!Animation.IsCrouch())
-                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - delta * 30);//1.5);
-                else
-                    CrouchWaitTime = Math.Min(1, CrouchWaitTime + delta * 30);//1.5);
 
                 LegAngles leftAngles, rightAngles;
                 switch (Animation)

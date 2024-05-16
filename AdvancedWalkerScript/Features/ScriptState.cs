@@ -22,18 +22,23 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class HumanoidLegGroup : ChickenWalkerLegGroup
+        public class ScriptState
         {
-            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
+            public string Serialize()
             {
-                double forwardsDelta = forwardsDeltaVec.Z;
-                base.Update(-forwardsDeltaVec, movementVector, delta);
+                MyIni serializer = new MyIni();
+                serializer.Clear();
+                serializer.AddSection("State");
+                serializer.Set("State", "crouched", crouchOverride);
+                return serializer.ToString();
             }
 
-            protected override void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
+            public void Parse(string ini)
             {
-                var inversed = new LegAngles(-1, -1, -1);
-                base.SetAngles(leftAngles * inversed, rightAngles * inversed);
+                MyIni serializer = new MyIni();
+                serializer.Clear();
+                serializer.TryParse(ini);
+                crouchOverride = serializer.Get("State", "crouched").ToBoolean(false);
             }
         }
     }

@@ -26,6 +26,7 @@ namespace IngameScript
         {
             protected override LegAngles CalculateAngles(double step)
             {
+                step *= -1;
                 step = step.Modulo(4);
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
 
@@ -68,22 +69,22 @@ namespace IngameScript
                 /*double x = sin * 1.5d * Configuration.StepLengthMultiplier + (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean);
                 double y = MathHelper.Clamp(((maxDistance) - cos * (maxDistance) + StandingHeight - (crouch ? 1 : 0)), double.MinValue, 3d + StandingHeight - (crouch ? 1 : 0));*/
 
-                double crouchAdditive = -MathHelper.Clamp(CrouchWaitTime, 0, .9);//crouch ? -MathHelper.Clamp(CrouchWaitTime, 0, .9) : 0; //-.9d : 0;
+                double crouchAdditive = -MathHelper.Clamp(CrouchWaitTime, 0, .5);//crouch ? -MathHelper.Clamp(CrouchWaitTime, 0, .9) : 0; //-.9d : 0;
                 Log($"crouchAdditive: {crouchAdditive}; isTurn: {Animation == Animation.Turn}");
 
-                double stepHeight = Configuration.StepHeight - .5d;
+                double stepHeight = Configuration.StepHeight - .6d;
                 double standingHeight = StandingHeight - .35d;
 
-                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) + .3;
+                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) + .5;
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(
                     // value
-                    cos * (stepHeight + 1) + .5 + 2 + standingHeight + 1.5,
+                    cos * (1) + .5 + 2 + standingHeight + 1.5 + .25,
 
                     // min/max
                     0,
-                    2 + stepHeight + standingHeight + 1
+                    2 + stepHeight + standingHeight + 1 + .25
                 ) + crouchAdditive;
 
                 if (Animation == Animation.Turn) // makes math above redudant, but rarely used so it's fine!
@@ -153,10 +154,11 @@ namespace IngameScript
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
-            public override void Update(double forwardsDelta, double delta)
+            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
+                double forwardsDelta = forwardsDeltaVec.Z;
                 forwardsDelta *= -1;
-                base.Update(forwardsDelta, delta);
+                base.Update(forwardsDeltaVec, movementVector, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
 
                 if (!Animation.IsCrouch())

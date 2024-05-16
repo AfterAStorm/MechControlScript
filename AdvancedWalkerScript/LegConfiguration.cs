@@ -54,7 +54,7 @@ namespace IngameScript
 
             private static MyIni ini;
 
-            public byte LegType;
+            public int LegType;
             public bool HipsInverted, KneesInverted, FeetInverted, QuadInverted;
             public double HipOffsets, KneeOffsets, FootOffsets, QuadOffsets;
 
@@ -64,6 +64,7 @@ namespace IngameScript
             public double StepHeight;
 
             public double AnimationSpeed => WalkCycleSpeed;
+            public double CrouchSpeed;
 
             private int defaultValue;
             public bool Default => defaultValue <= 0;
@@ -76,7 +77,7 @@ namespace IngameScript
             {
                 ini.Clear();
                 ini.Set("Leg", "LegType", LegType);
-                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t4 = Digitigrade");
+                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t-3 = Inverse/Upsidedown Spideroid\r\n\t4 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
                 ini.SetComment("Leg", "HipOffsets", "The joints' offsets");
@@ -97,6 +98,9 @@ namespace IngameScript
                 ini.Set("Leg", "StepHeight", StepHeight);
                 ini.SetComment("Leg", "StepHeight", "This changes step height -- how far up the feet will go");
 
+                ini.Set("Leg", "CrouchSpeed", CrouchSpeed);
+                ini.SetComment("Leg", "CrouchSpeed", "How fast crouching is");
+
                 ini.SetSectionComment("Leg", $"These are all the settings associated with this leg group (group {Id}),\nchanging these will change all the other joints in the same group");
                 return ini.ToString();
             }
@@ -105,7 +109,7 @@ namespace IngameScript
             {
                 LegConfiguration config = new LegConfiguration
                 {
-                    LegType = ini.Get("Leg", "LegType").ToByte(1),
+                    LegType = ini.Get("Leg", "LegType").ToInt32(1),
 
                     HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(DefaultHipOffsets),
                     KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(DefaultKneeOffsets),
@@ -120,6 +124,8 @@ namespace IngameScript
 
                     StepLength = ini.Get("Leg", "StepLength").ToDouble(1),
                     StepHeight = ini.Get("Leg", "StepHeight").ToDouble(1),
+
+                    CrouchSpeed = ini.Get("Leg", "CrouchSpeed").ToDouble(1),
 
                     defaultValue = 1
                 };

@@ -54,10 +54,11 @@ namespace IngameScript
 
         /*
          * Leg Types:
-         * 1 = Chicken walker
-         * 2 = Humanoid
-         * 3 = Spideroid
-         * 4 = Digitigrade
+         * 1    = Chicken walker
+         * 2    = Humanoid
+         * 3    = Spideroid
+         * -3   = Inverse/Upsidedown Spideroid
+         * 4    = Digitigrade
         */
         // The default is 1, but can be changed in the CustomData of any joint of the leg group
 
@@ -129,6 +130,8 @@ namespace IngameScript
 
         // Diagnostics //
 
+        static bool debugMode = true;
+
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
         double maxRuntime = 0;
@@ -139,7 +142,10 @@ namespace IngameScript
 
         // Variables //
 
+        ScriptState state;
+
         double deltaOffset = 0;
+        bool setupMode = false;
 
         public static IMyTextPanel debug = null;
         public static IMyTextPanel debug2 = null;
@@ -157,20 +163,27 @@ namespace IngameScript
         List<RotorGyroscope> rollStators = new List<RotorGyroscope>();
         List<Gyroscope> azimuthGyros = new List<Gyroscope>();
         public static List<IMyShipController> cockpits = new List<IMyShipController>();
-        bool crouched = false;
-        bool crouchOverride = false; // argument crouch
+        static bool crouched = false;
+        static bool crouchOverride = false; // argument crouch
         public static bool jumping = false;
         double jumpCooldown = 0;
+
+        public static double animationStep = 0;
+
+        bool thrustersEnabled = true;
+        List<IMyThrust> thrusters = new List<IMyThrust>();
 
         public static bool stepEndedOn0 = true;
 
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
-        int turnOverride = 0;
+        float turnOverride = 0;
         double targetTorsoTwistAngle = -1;
 
         static void Log(params object[] messages)
         {
+            if (!debugMode)
+                return;
             string message = string.Join(" ", messages);
             if (debug == null)
                 Singleton.Echo(message);
@@ -250,6 +263,7 @@ namespace IngameScript
                 }
             }
 
+            // Get stabilization gyros
             stabilizationGyros.Clear();
             foreach (FetchedBlock block in BlockFinder.GetBlocksOfType<IMyGyro>(gyro => BlockFetcher.ParseBlock(gyro).HasValue).Select(gyro => BlockFetcher.ParseBlock(gyro)))
                 switch (block.Type)
@@ -262,8 +276,17 @@ namespace IngameScript
                         break;
                 }
 
+            // Get thrusters
+            foreach (IMyThrust block in BlockFinder.GetBlocksOfType<IMyThrust>())
+                thrusters.Add(block); // before you cry, BlockFinder.GetBlocksOfType checks IsSameConstructAs
+
             // Get the leg groups and the blocks associated with them
-            BlockFetcher.GetBlocks();
+            BlockFetcher.FetchLegs();
+
+            // Fix jump after reload
+            if (crouchOverride || crouched)
+                foreach (LegGroup leg in Legs.Values)
+                    leg.CrouchWaitTime = 1;
         }
 
         /*/// <summary> // I'm keeping this for sentimental value, it will get removed in the workshop publish from minification anyway
@@ -309,6 +332,8 @@ namespace IngameScript
         {
             // Initialize
             Singleton = this;
+            state = new ScriptState();
+            Load();
 
             // Get blocks
             GetBlocks();
@@ -317,18 +342,42 @@ namespace IngameScript
             Runtime.UpdateFrequency = UpdateFrequency.Update1;
         }
 
+        public void Load()
+        {
+            Echo("storage:" + Storage);
+            Echo("state:" + state.ToString());
+            state.Parse(Storage ?? "");
+        }
+
         /// <summary>
         /// Saves the current state
         /// </summary>
         public void Save()
         {
-
+            Storage = state.Serialize();
         }
 
         void Warn(string title, string info)
         {
             Echo($"[Color=#dcf71600]Warning: {title}[/Color]");
             Echo($"[Color=#c8e02d00]{info}[/Color]\n");
+        }
+
+        float TryParseFloat(string str)
+        {
+            float result = 0;
+            bool parsed = float.TryParse(str, out result);
+            return result;
+        }
+
+        float ParseFloatArgument(float current, string str)
+        {
+            if (str.StartsWith("+"))
+                return TryParseFloat(str.Substring(1));
+            if (str.StartsWith("-"))
+                return -TryParseFloat(str.Substring(1));
+            float value = TryParseFloat(str);
+            return value - current;
         }
 
         /// <summary>
@@ -354,6 +403,9 @@ namespace IngameScript
             Echo($"Max        Tick: {maxRuntime:.03}ms");
             Echo($"Last Instructions: {lastInstructions}");
             Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:.03}%\n");
+
+            if (setupMode)
+                Warn("Setup Mode Active", "Any changes will be detected, beware that the script uses a lot more resources");
 
             // Some Setup Warnings
             if (cockpits.Count <= 0)
@@ -388,7 +440,7 @@ namespace IngameScript
                         break;
                     case "walk": // b or backwards to go backwards, forward is infered and default
                         if (arguments.Length > 1)
-                            movementOverride = arguments[1].Equals("b") || arguments[1].Equals("backwards") ? Vector3.Backward : Vector3.Forward;
+                            movementOverride = arguments[1].Equals("back") ? Vector3.Backward : Vector3.Forward;
                         else
                             movementOverride = Vector3.Forward;
                         break;
@@ -401,46 +453,62 @@ namespace IngameScript
                         if (arguments.Length > 1)
                         {
                             force = true;
-                            forcedStep = float.Parse(arguments[1]);
+                            forcedStep += ParseFloatArgument(forcedStep, arguments[1]);
+                            forcedStep %= 4;
                         }
                         break;
 
                     case "turn":
                         if (arguments.Length > 1)
-                            turnOverride = int.Parse(arguments[1]);
+                            turnOverride = MathHelper.Clamp(turnOverride + ParseFloatArgument(turnOverride, arguments[1]), -1, 1);
                         else
                             turnOverride = 0;
                         break;
 
+                    case "setup":
+                        setupMode = !setupMode;
+                        break;
+
+                    case "debug":
+                        debugMode = !debugMode;
+                        break;
+
+                    // thrusters //
+                    case "thrusters":
+                        if (arguments.Length > 1)
+                            thrustersEnabled = arguments[1].Equals("on");
+                        else
+                            thrustersEnabled = !thrustersEnabled;
+                        break;
+
                     // set methods //
                     case "speed":
-                        WalkCycleSpeed = float.Parse(arguments[1]);
+                        WalkCycleSpeed += ParseFloatArgument(WalkCycleSpeed, arguments[1]);
                         break;
 
                     case "lean":
-                        float value = float.Parse(arguments[1]);
-                        StandingLean = value;
-                        AccelerationLean = value;
+                        StandingLean += ParseFloatArgument(StandingHeight, arguments[1]);
+                        AccelerationLean = StandingLean;
                         break;
 
                     case "standinglean":
                     case "standlean":
-                        StandingLean = float.Parse(arguments[1]);
+                        StandingLean += ParseFloatArgument((float)StandingLean, arguments[1]);
                         break;
 
                     case "accelerationlean":
                     case "accellean":
-                        StandingLean = float.Parse(arguments[1]);
+                        AccelerationLean += ParseFloatArgument((float)AccelerationLean, arguments[1]);
                         break;
 
                     case "steplength":
-                        double stepLength = double.Parse(arguments[1]);
+                        double stepLength = (double)TryParseFloat(arguments[1]);
                         foreach (LegGroup g in Legs.Values)
                             g.Configuration.StepLength = stepLength;
                         break;
 
                     case "stepheight":
-                        double stepHeight = double.Parse(arguments[1]);
+                        double stepHeight = (double)TryParseFloat(arguments[1]);
                         foreach (LegGroup g in Legs.Values)
                             g.Configuration.StepHeight = stepHeight;
                         break;
@@ -450,7 +518,7 @@ namespace IngameScript
                         break;
 
                     case "twist":
-                        targetTorsoTwistAngle = arguments.Length > 1 ? float.Parse(arguments[1]) : 0;
+                        targetTorsoTwistAngle = arguments.Length > 1 ? TryParseFloat(arguments[1]) : 0;
                         break;
                 }
                 if (!updateSource.HasFlag(UpdateType.Update1))
@@ -464,11 +532,17 @@ namespace IngameScript
             if (!updateSource.HasFlag(UpdateType.Update1))
                 return;
 
+            if (setupMode)
+                GetBlocks();
+
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
             // Screens
-            integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
-            integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
+            if (integrityRenderers.Count > 0)
+            {
+                //integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
+                //integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
+            }
 
             // Get delta
             double delta = Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d + deltaOffset;
@@ -482,7 +556,6 @@ namespace IngameScript
             Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw // Mouse
             float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered) // Q + E
 
-
             float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
             HandleStabilization(turnValue);
             HandleTorsoTwist(rotationInput.Y);
@@ -491,6 +564,12 @@ namespace IngameScript
             Log($"azimuthStators: {azimuthStators.Count}");
             Log($"elevationStators: {elevationStators.Count}");
             Log($"rollStators: {rollStators.Count}");
+
+            foreach (IMyThrust thruster in thrusters)
+            {
+                thruster.ThrustOverridePercentage = moveInput.Y > 0 ? 1 : 0;
+                thruster.Enabled = thrustersEnabled && moveInput.Y > 0;
+            }
 
             bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
@@ -524,7 +603,7 @@ namespace IngameScript
                 movement.Z += movementDirection.Z * (movementDirection.Z > 0 ? AccelerationMultiplier : DecelerationMultiplier) * (float)delta;
             }
 
-            if (Math.Abs(movementDirection.X) < .01 && Math.Abs(movement.X) < .01)
+            if (Math.Abs(movementDirection.X) < .3 && Math.Abs(movement.X) < .3)
                 movement.X = 0;
             if (Math.Abs(movementDirection.Z) < .3 && Math.Abs(movement.Z) < .3)
                 movement.Z = 0;
@@ -535,9 +614,12 @@ namespace IngameScript
 
             double originalDelta = delta;
             Log($"Before delta: {delta}");
-            delta *= -movement.Z; // negative because -Z is forwards!
+            //delta *= -movement.Z; // negative because -Z is forwards!
             Log($"After delta: {delta}");
 
+            Vector3 movementVec = new Vector3(movement.X, turnValue, -movement.Z);
+            Vector3 movementDelta = movementVec * new Vector3((float)delta);
+            Log($"Movement Delta: {movementDelta} {movementDelta.Length()}");
 
             if (force)
             {
@@ -545,12 +627,12 @@ namespace IngameScript
                 {
                     leg.Animation = Animation.Force;
                     leg.AnimationStep = forcedStep;
-                    leg.Update(0.01, 0);
+                    leg.Update(new Vector3(0, 0, .01), movementVec, 0);
                 }
                 return;
             }
 
-            if (Math.Abs(movement.Z) <= 0.00001)
+            if (Math.Abs((movementDelta * new Vector3(1, 0, 1)).Length()) <= 0.00001)
                 foreach (LegGroup leg in Legs.Values)
                     leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else
@@ -567,24 +649,13 @@ namespace IngameScript
                     }*/
                 }
             }
-            if (Legs.Count > 0)
-            {
-                LegGroup first = Legs.First().Value;
-                if (first.AnimationStep != 0)
-                {
-                    stepEndedOn0 = first.AnimationStep > 3.5d || first.AnimationStep < .5d;
-                    xxx = first.AnimationStep;
-                }
-            }
-            Log($"xxx: {xxx}");
-            Log($"AstepEndedOn0: {stepEndedOn0}");
-            Log($"Did: {did.ToString()}");
 
+            animationStep += (Math.Abs(movementDelta.Z) <= .001 ? movementDelta.Length() : movementDelta.Z) * WalkCycleSpeed;
+            animationStep %= 4;
+            Log("step:" + animationStep);
             foreach (LegGroup leg in Legs.Values)
-                leg.Update(delta, originalDelta);
+                leg.Update(movementDelta, movementVec, originalDelta);
             lastInstructions = Runtime.CurrentInstructionCount;
         }
-        double xxx;
-        bool did;
     }
 }

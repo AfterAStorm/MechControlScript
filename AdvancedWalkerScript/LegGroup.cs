@@ -149,8 +149,9 @@ namespace IngameScript
                 throw new Exception("CalculateAngles Not Implemented");
             }
 
-            public virtual void Update(double forwardsDelta, double delta)
+            public virtual void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
+                double forwardsDelta = forwardsDeltaVec.Z;
                 // Update multipliers, we should probably isolate this in a "Initialize" method or something
                 HipInversedMultiplier = Configuration.HipsInverted ? -1 : 1;
                 KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
@@ -162,10 +163,20 @@ namespace IngameScript
 
                 if (OffsetLegs)
                     LastDelta = forwardsDelta;
+
+                // Animate crouch
+                if (!Animation.IsCrouch())
+                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - delta * 2 * Configuration.CrouchSpeed);
+                else
+                    CrouchWaitTime = Math.Min(1, CrouchWaitTime + delta * 2 * Configuration.CrouchSpeed);
+
                 // Update animation step
                 double multiplier = forwardsDelta / Math.Abs(forwardsDelta);
                 Log($"mul: {multiplier}");
-                AnimationStep += (!double.IsNaN(multiplier) ? forwardsDelta : delta * (LastDelta / Math.Abs(LastDelta)) / 2) * Configuration.AnimationSpeed;//delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
+                //if (!double.IsNaN(multiplier))
+                    AnimationStep = animationStep;
+                //else
+                //    AnimationStep += (!double.IsNaN(multiplier) ? forwardsDelta : delta * (LastDelta / Math.Abs(LastDelta)) / 2) * Configuration.AnimationSpeed;//delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
                 AnimationStep %= 4; // 0 to 3
             }
 

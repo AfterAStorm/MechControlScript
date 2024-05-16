@@ -85,7 +85,7 @@ namespace IngameScript
         {
             static int parsedId;
 
-            private static LegGroup CreateLegFromType(byte type)
+            private static LegGroup CreateLegFromType(int type)
             {
                 switch (type)
                 {
@@ -96,6 +96,8 @@ namespace IngameScript
                         return new HumanoidLegGroup();
                     case 3:
                         return new SpideroidLegGroup();
+                    case -3:
+                        return new InverseSpideroidLegGroup();
                     case 4:
                         return new DigitigradeLegGroup();
                     default:
@@ -283,7 +285,7 @@ namespace IngameScript
                 }
             }
 
-            public static void GetBlocks()
+            public static void FetchLegs()
             {
                 Dictionary<int, LegGroup> newLegs = new Dictionary<int, LegGroup>();
                 List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();

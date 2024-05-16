@@ -22,19 +22,9 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class HumanoidLegGroup : ChickenWalkerLegGroup
+        public class ArmGroup
         {
-            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
-            {
-                double forwardsDelta = forwardsDeltaVec.Z;
-                base.Update(-forwardsDeltaVec, movementVector, delta);
-            }
 
-            protected override void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
-            {
-                var inversed = new LegAngles(-1, -1, -1);
-                base.SetAngles(leftAngles * inversed, rightAngles * inversed);
-            }
         }
     }
 }
