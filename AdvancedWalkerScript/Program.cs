@@ -21,8 +21,6 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Game.ModAPI.Ingame.Utilities;
 using VRage.Game.ObjectBuilders.Definitions;
 using VRageMath;
-using static IngameScript.Program;
-using static IngameScript.IMyMotorStatorExtensions;
 
 namespace IngameScript
 {
@@ -57,7 +55,7 @@ namespace IngameScript
          * 1    = Chicken walker
          * 2    = Humanoid
          * 3    = Spideroid
-         * -3   = Inverse/Upsidedown Spideroid
+         * -3   = Crab
          * 4    = Digitigrade
         */
         // The default is 1, but can be changed in the CustomData of any joint of the leg group
@@ -126,16 +124,18 @@ namespace IngameScript
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
         public const double DefaultFeetOffsets = 0d;
+        public const double DefaultQuadOffsets = 0d;
         #endregion
 
         // Diagnostics //
 
-        static bool debugMode = true;
+        static bool debugMode = false;
 
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
         double maxRuntime = 0;
         int lastInstructions = 0;
+        int maxInstructions = 0;
 
         bool force = false;
         float forcedStep = 0;
@@ -144,20 +144,29 @@ namespace IngameScript
 
         ScriptState state;
 
+        enum ControlMode
+        {
+            Legs,
+            Arms
+        }
+
+        ControlMode mode = ControlMode.Arms;
+
         double deltaOffset = 0;
         bool setupMode = false;
 
         public static IMyTextPanel debug = null;
         public static IMyTextPanel debug2 = null;
 
-        public static Dictionary<int, LegGroup> Legs = new Dictionary<int, LegGroup>();
+        public static Dictionary<int, LegGroup> legs = new Dictionary<int, LegGroup>();
+        public static Dictionary<int, ArmGroup> arms = new Dictionary<int, ArmGroup>();
 
         List<InvalidatableSurfaceRenderer> integrityRenderers = new List<InvalidatableSurfaceRenderer>();
         List<InvalidatableSurfaceRenderer> statusRenderers = new List<InvalidatableSurfaceRenderer>();
 
         List<IMyGyro> steeringGyros = new List<IMyGyro>();
         List<Gyroscope> stabilizationGyros = new List<Gyroscope>();
-        List<Joint> torsoTwistStators = new List<Joint>();
+        List<LegJoint> torsoTwistStators = new List<LegJoint>();
         List<RotorGyroscope> azimuthStators = new List<RotorGyroscope>();
         List<RotorGyroscope> elevationStators = new List<RotorGyroscope>();
         List<RotorGyroscope> rollStators = new List<RotorGyroscope>();
@@ -168,17 +177,21 @@ namespace IngameScript
         public static bool jumping = false;
         double jumpCooldown = 0;
 
+        public static double armPitch = 0;
+        public static double armYaw = 0;
+        public static double armRoll = 0;
+
         public static double animationStep = 0;
 
         bool thrustersEnabled = true;
         List<IMyThrust> thrusters = new List<IMyThrust>();
 
-        public static bool stepEndedOn0 = true;
-
         Vector3 movementOverride = Vector3.Zero;
         Vector3 movement = Vector3.Zero;
         float turnOverride = 0;
         double targetTorsoTwistAngle = -1;
+
+        //IMyFlightMovementBlock moveBlock;
 
         static void Log(params object[] messages)
         {
@@ -189,6 +202,7 @@ namespace IngameScript
                 Singleton.Echo(message);
             else
                 debug.WriteText(message + "\n", true);
+            //Singleton.Echo(message);
         }
         
 
@@ -198,6 +212,7 @@ namespace IngameScript
         /// </summary>
         void GetBlocks()
         {
+            //moveBlock = BlockFinder.GetBlocksOfType<IMyFlightMovementBlock>()[0];
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
             debug2 = GridTerminalSystem.GetBlockWithName(DebugLCD + "2") as IMyTextPanel;
             debug?.WriteText(""); // clear
@@ -247,7 +262,7 @@ namespace IngameScript
                 switch (block.Type)
                 {
                     case BlockType.TorsoTwist:
-                        torsoTwistStators.Add(new Joint(block));
+                        torsoTwistStators.Add(new LegJoint(block));
                         break;
                     case BlockType.GyroscopeAzimuth:
                         azimuthStators.Add(new RotorGyroscope(block));
@@ -281,49 +296,15 @@ namespace IngameScript
                 thrusters.Add(block); // before you cry, BlockFinder.GetBlocksOfType checks IsSameConstructAs
 
             // Get the leg groups and the blocks associated with them
+            // Get the arm groups and the blocks associated with them
             BlockFetcher.FetchLegs();
+            BlockFetcher.FetchArms();
 
             // Fix jump after reload
             if (crouchOverride || crouched)
-                foreach (LegGroup leg in Legs.Values)
+                foreach (LegGroup leg in legs.Values)
                     leg.CrouchWaitTime = 1;
         }
-
-        /*/// <summary> // I'm keeping this for sentimental value, it will get removed in the workshop publish from minification anyway
-        /// Loads the configuration
-        /// </summary>
-        private void LoadConfiguration()
-        {
-            if (!configuration.TryParse(UseCustomDataAsConfiguration ? Me.CustomData : Storage))
-            {
-                if (UseCustomDataAsConfiguration && Me.CustomData.Length > 5) // arbitrary value, if its not empty don't overwrite it
-                {
-                    Echo("Failed to load/parse configuration from the block's CustomData, maybe a syntax error occured or there is already another type of data inside.");
-                    return;
-                }
-                if (LegGroups.Length != LegOffsets.Length)
-                {
-                    Echo("There isn't enough leg offsets for leg groups or vice versa, please check the *script configuration* and not the custom data configuration");
-                    return; // never set update frequency, so nothing is run again!
-                }
-                configuration.AddSection(       "Mech Core");
-                configuration.Set(              "Mech Core", "Legs", string.Join(",", LegGroups));
-                configuration.SetComment(       "Mech Core", "Legs", "The leg definitions in the configuration, labeled as [Mech Leg : (Leg Name)]");
-                configuration.Set(              "Mech Core", "Cockpit", "auto");
-                configuration.SetComment(       "Mech Core", "Cockpit", "If set to auto, it will attempt to find the main cockpit");
-                configuration.Set(              "Mech Core", "Reference", "auto");
-                configuration.SetComment(       "Mech Core", "Reference", "If set to auto, it will use the first found remote control");
-
-                for (int i = 0; i < LegGroups.Length; i++)
-                {
-                    string leg = LegGroups[i];
-                    float offset = LegOffsets[i];
-                    string section = $"Mech Leg : {leg}";
-                    configuration.AddSection(   section);
-                    configuration.Set(          section, "", "");
-                }
-            }
-        }*/
 
         /// <summary>
         /// Initializes the script
@@ -365,7 +346,7 @@ namespace IngameScript
 
         float TryParseFloat(string str)
         {
-            float result = 0;
+            float result;
             bool parsed = float.TryParse(str, out result);
             return result;
         }
@@ -393,16 +374,19 @@ namespace IngameScript
             averageRuntimes[averageRuntimeIndex] = lastRuntime;
             averageRuntimeIndex = (averageRuntimeIndex + 1) % averageRuntimes.Length;
             maxRuntime = Math.Max(maxRuntime, lastRuntime);
+            maxInstructions = Math.Max(maxInstructions, lastInstructions);
 
             // Detailed Info - alpha red green blue
             Echo("[Color=#13ebca00]Advanced Walker Script[/Color]");
-            Echo($"{Legs.Count} leg group{(Legs.Count != 1 ? "s" : "")}");
+            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")}");
             Echo($"");
-            Echo($"Last       Tick: {lastRuntime}ms");
-            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:.03}ms over {averageRuntimes.Length} samples");
-            Echo($"Max        Tick: {maxRuntime:.03}ms");
+            Echo($"Last       Tick: {lastRuntime:f3}ms");
+            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:f3}ms over {averageRuntimes.Length} samples");
+            Echo($"Max        Tick: {maxRuntime:f3}ms");
             Echo($"Last Instructions: {lastInstructions}");
-            Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:.03}%\n");
+            Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:f1}%");
+            Echo($"Max Instructions: {maxInstructions}");
+            Echo($"Max Compexity: {maxInstructions / Runtime.MaxInstructionCount * 100:f1}%\n");
 
             if (setupMode)
                 Warn("Setup Mode Active", "Any changes will be detected, beware that the script uses a lot more resources");
@@ -417,7 +401,7 @@ namespace IngameScript
                 else
                     Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
             }
-            if (Legs.Count <= 0) // how bruh gonna *walk* without legza?
+            if (legs.Count <= 0) // how bruh gonna *walk* without legza?
                 Warn("No Legs Found!", "Failed to find any leg groups!\nNeed help setting up? Check the documentation at github.com/AfterAStorm/AdvancedWalkerScript/wiki");
 
             // Handle arguments
@@ -428,6 +412,8 @@ namespace IngameScript
                 {
                     default:
                     case "reload": // Reloads the script's blocks and configuration
+                        Save();
+                        Load();
                         GetBlocks();
                         force = false;
                         break;
@@ -453,7 +439,7 @@ namespace IngameScript
                         if (arguments.Length > 1)
                         {
                             force = true;
-                            forcedStep += ParseFloatArgument(forcedStep, arguments[1]);
+                            forcedStep += float.Parse(arguments[1]);//ParseFloatArgument(forcedStep, arguments[1]);
                             forcedStep %= 4;
                         }
                         break;
@@ -503,13 +489,13 @@ namespace IngameScript
 
                     case "steplength":
                         double stepLength = (double)TryParseFloat(arguments[1]);
-                        foreach (LegGroup g in Legs.Values)
+                        foreach (LegGroup g in legs.Values)
                             g.Configuration.StepLength = stepLength;
                         break;
 
                     case "stepheight":
                         double stepHeight = (double)TryParseFloat(arguments[1]);
-                        foreach (LegGroup g in Legs.Values)
+                        foreach (LegGroup g in legs.Values)
                             g.Configuration.StepHeight = stepHeight;
                         break;
 
@@ -519,6 +505,12 @@ namespace IngameScript
 
                     case "twist":
                         targetTorsoTwistAngle = arguments.Length > 1 ? TryParseFloat(arguments[1]) : 0;
+                        break;
+
+                    case "arm":
+                        armPitch = 0;
+                        armYaw = 0;
+                        armRoll = 0;
                         break;
                 }
                 if (!updateSource.HasFlag(UpdateType.Update1))
@@ -533,10 +525,28 @@ namespace IngameScript
                 return;
 
             if (setupMode)
+            {
+                Save();
+                Load();
                 GetBlocks();
+            }
 
             debug?.WriteText(""); // clear
             Log("MAIN LOOP");
+            /*Log($"waypoint: {(moveBlock.CurrentWaypoint != null ? moveBlock.CurrentWaypoint.RelativeMatrix.Translation.ToString() : "no waypoint")}");
+            if (moveBlock.CurrentWaypoint != null)
+            {
+                double distance = (moveBlock.WorldMatrix.Translation - moveBlock.CurrentWaypoint.Matrix.Translation).Length();
+                Log($"distance: {distance}(m?)");
+                if (distance < 6)
+                {
+                    movementOverride = Vector3.Zero;
+                }
+                else
+                    movementOverride = Vector3.Forward;
+            }
+            else
+                movementOverride = Vector3.Zero;*/
             // Screens
             if (integrityRenderers.Count > 0)
             {
@@ -558,7 +568,17 @@ namespace IngameScript
 
             float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
             HandleStabilization(turnValue);
-            HandleTorsoTwist(rotationInput.Y);
+
+            if (mode == ControlMode.Arms)
+            {
+                armPitch += -rotationInput.X * .2;
+                armYaw += rotationInput.Y * .05;
+                armRoll += 0;
+            }
+            else
+            {
+                HandleTorsoTwist(rotationInput.Y);
+            }
 
             Log($"turnValue: {turnValue}");
             Log($"azimuthStators: {azimuthStators.Count}");
@@ -623,7 +643,7 @@ namespace IngameScript
 
             if (force)
             {
-                foreach (LegGroup leg in Legs.Values)
+                foreach (LegGroup leg in legs.Values)
                 {
                     leg.Animation = Animation.Force;
                     leg.AnimationStep = forcedStep;
@@ -633,11 +653,11 @@ namespace IngameScript
             }
 
             if (Math.Abs((movementDelta * new Vector3(1, 0, 1)).Length()) <= 0.00001)
-                foreach (LegGroup leg in Legs.Values)
+                foreach (LegGroup leg in legs.Values)
                     leg.Animation = turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
             else
             {
-                foreach (LegGroup leg in Legs.Values)
+                foreach (LegGroup leg in legs.Values)
                 {
                     bool wasIdle = leg.Animation.IsIdle();
                     leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
@@ -652,9 +672,14 @@ namespace IngameScript
 
             animationStep += (Math.Abs(movementDelta.Z) <= .001 ? movementDelta.Length() : movementDelta.Z) * WalkCycleSpeed;
             animationStep %= 4;
+            //animationStep = forcedStep;
             Log("step:" + animationStep);
-            foreach (LegGroup leg in Legs.Values)
+            foreach (LegGroup leg in legs.Values)
                 leg.Update(movementDelta, movementVec, originalDelta);
+
+            Log($"arms: {arms.Count}");
+            foreach (ArmGroup arm in arms.Values)
+                arm.Update();
             lastInstructions = Runtime.CurrentInstructionCount;
         }
     }

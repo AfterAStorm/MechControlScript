@@ -31,11 +31,17 @@ namespace IngameScript
 
         public enum BlockType
         {
-            // Specific
+            // Leg
             Hip,
             Knee,
             Foot,
             Quad,
+
+            // Arm
+            Pitch,
+            Yaw,
+            Roll,
+            Magnet, // arm landing gear
 
             // Misc
             LandingGear,
@@ -43,7 +49,9 @@ namespace IngameScript
             GyroscopeAzimuth, // rotor or gyroscope, yaw
             GyroscopeElevation, // rotor or gyroscope, pitch
             GyroscopeRoll, // rotor or gyroscope, roll
-            GyroscopeStabilization
+            GyroscopeStabilization,
+
+            Camera
         }
 
         public enum BlockSide
@@ -97,16 +105,28 @@ namespace IngameScript
                     case 3:
                         return new SpideroidLegGroup();
                     case -3:
-                        return new InverseSpideroidLegGroup();
+                        return new CrabLegGroup();
                     case 4:
                         return new DigitigradeLegGroup();
+                    case 5:
+                        return new TestLegGroup();
                     default:
                         throw new Exception("Leg type not implemented!");
                 }
             }
 
+            private static ArmGroup CreateArmFromType(int type)
+            {
+                return new ArmGroup();
+            }
+
             private static readonly List<BlockType> DoesntRequireSide = new List<BlockType>()
             {
+                BlockType.Pitch,
+                BlockType.Yaw,
+                BlockType.Roll,
+                BlockType.Magnet, // arm landing gear
+
                 BlockType.TorsoTwist,
 
                 BlockType.GyroscopeAzimuth,
@@ -128,15 +148,16 @@ namespace IngameScript
                     BlockType? blockType = null;
                     switch (match.Groups[1].Value.Replace("+", "").Replace("-", "")) // the replace is beacuse i cannot regex for some reason D:
                     {
+                        /* Leg */
                         case "h":
                             //case "hip":
-                            if (!(block is IMyMotorStator))
+                            if (!(block is IMyMotorStator) && !(block is IMyPistonBase))
                                 break; // Liars!
                             blockType = BlockType.Hip;
                             break;
                         case "k":
                             //case "knee":
-                            if (!(block is IMyMotorStator))
+                            if (!(block is IMyMotorStator) && !(block is IMyPistonBase))
                                 break; // Liars!
                             blockType = BlockType.Knee;
                             break;
@@ -144,7 +165,7 @@ namespace IngameScript
                             //case "fp":
                             //case "foot":
                             //case "feet":
-                            if (!(block is IMyMotorStator))
+                            if (!(block is IMyMotorStator) && !(block is IMyPistonBase))
                                 break; // Liars!
                             blockType = BlockType.Foot;
                             break;
@@ -153,6 +174,29 @@ namespace IngameScript
                                 break; // Liars!
                             blockType = BlockType.Quad;
                             break;
+                        /* Arm */
+                        case "ap":
+                            if (!(block is IMyMotorStator))
+                                break; // Liars!
+                            blockType = BlockType.Pitch;
+                            break;
+                        case "ay":
+                            if (!(block is IMyMotorStator))
+                                break; // Liars!
+                            blockType = BlockType.Yaw;
+                            break;
+                        case "ar":
+                            if (!(block is IMyMotorStator))
+                                break; // Liars!
+                            blockType = BlockType.Roll;
+                            break;
+                        case "alg":
+                        case "amg":
+                            if (!(block is IMyLandingGear))
+                                break; // Liars!
+                            blockType = BlockType.Magnet;
+                            break;
+                        /* Other */
                         case "tt":
                             if (!(block is IMyMotorStator))
                                 break; // Liars!
@@ -186,10 +230,13 @@ namespace IngameScript
                                 break; // Liars!
                             blockType = BlockType.LandingGear;
                             break;
+                        case "c":
+                            blockType = BlockType.Camera;
+                            break;
                     }
                     if (!blockType.HasValue)
                         continue; // invalid
-                    Log($"{block.CustomName} Got block type!", blockType.Value);
+                    //Log($"{block.CustomName} Got block type!", blockType.Value);
 
                     // Parse the side
                     BlockSide? side = null;
@@ -206,7 +253,7 @@ namespace IngameScript
                     }
                     if (!side.HasValue && !DoesntRequireSide.Contains(blockType.Value))
                         continue; // invalid side
-                    Log("Past side");
+                    //Log("Past side");
 
                     // Parse the group it's in
                     bool parsed = int.TryParse(match.Groups[3].Value, out parsedId);
@@ -239,7 +286,6 @@ namespace IngameScript
 
             private static void AddToLeg(FetchedBlock block, LegGroup leg) // adds a fetched block to the leg
             {
-                block.Block.CustomData = leg.Configuration.ToCustomDataString(); // set new configuration
                 Log($"Block {block.Block.CustomName} as {block.Type}");
                 switch (block.Type)
                 {
@@ -247,7 +293,16 @@ namespace IngameScript
                     case BlockType.Knee:
                     case BlockType.Foot: // if its a joint, create it and add it appropriately
                     case BlockType.Quad:
-                        Joint joint = new Joint(block);
+                        if (block.Block is IMyPistonBase)
+                        {
+                            if (block.Side == BlockSide.Left)
+                                leg.LeftPistons.Add(block);
+                            else
+                                leg.RightPistons.Add(block);
+                            break;
+                        }
+
+                        LegJoint joint = new LegJoint(block);
                         switch (block.Type)
                         {
                             case BlockType.Hip:
@@ -282,7 +337,10 @@ namespace IngameScript
                         else
                             leg.RightGears.Add(block.Block as IMyLandingGear);
                         break;
+                    default:
+                        return;
                 }
+                block.Block.CustomData = leg.Configuration.ToCustomDataString(); // set new configuration
             }
 
             public static void FetchLegs()
@@ -292,10 +350,11 @@ namespace IngameScript
                 List<FetchedBlock> reiterate = new List<FetchedBlock>();
 
                 Dictionary<int, LegConfiguration> lastConfigurations = new Dictionary<int, LegConfiguration>();
-                foreach (var kv in Legs)
+                foreach (var kv in legs)
                     lastConfigurations.Add(kv.Key, kv.Value.Configuration);
 
                 blocks.AddRange(BlockFinder.GetBlocksOfType<IMyMotorStator>());
+                blocks.AddRange(BlockFinder.GetBlocksOfType<IMyPistonBase>());
                 blocks.AddRange(BlockFinder.GetBlocksOfType<IMyLandingGear>());
                 Log($"Number of blocks found: {blocks.Count}");
 
@@ -354,7 +413,95 @@ namespace IngameScript
                 }
 
                 // Set the legs
-                Legs = newLegs;
+                legs = newLegs;
+            }
+
+            private static void AddToArm(FetchedBlock block, ArmGroup arm)
+            {
+                ArmJointConfiguration jointConfig = ArmJointConfiguration.Parse(block);
+                Log($"block: {block.Block.CustomData}");
+                Log($"offset: {jointConfig.Offset}");
+
+                switch (block.Type)
+                {
+                    case BlockType.Pitch:
+                        arm.PitchJoints.Add(new ArmJoint(block, jointConfig));
+                        break;
+                    case BlockType.Yaw:
+                        arm.YawJoints.Add(new ArmJoint(block, jointConfig));
+                        break;
+                    case BlockType.Roll:
+                        arm.RollJoints.Add(new ArmJoint(block, jointConfig));
+                        break;
+                    case BlockType.Magnet:
+                        arm.Magnets.Add(block.Block as IMyLandingGear);
+                        break;
+                    default:
+                        return;
+                }
+                block.Block.CustomData = arm.Configuration.ToCustomDataString() + "" + jointConfig.ToCustomDataString();
+            }
+
+            public static void FetchArms()
+            {
+                Dictionary<int, ArmGroup> newArms = new Dictionary<int, ArmGroup>();
+                List<IMyTerminalBlock> blocks = BlockFinder.GetBlocksOfType<IMyTerminalBlock>(block => block is IMyMotorStator || block is IMyLandingGear);
+                List<FetchedBlock> reiterate = new List<FetchedBlock>();
+
+                Dictionary<int, ArmConfiguration> lastConfigurations = new Dictionary<int, ArmConfiguration>();
+                foreach (var kv in arms)
+                    lastConfigurations.Add(kv.Key, kv.Value.Configuration);
+                
+                foreach (var block in blocks)
+                {
+                    FetchedBlock? triedFetch = ParseBlock(block);
+                    if (!triedFetch.HasValue)
+                        continue;
+                    FetchedBlock fetchedBlock = triedFetch.Value;
+                    if (newArms.ContainsKey(fetchedBlock.Group))
+                    {
+                        AddToArm(fetchedBlock, newArms[fetchedBlock.Group]);
+                        continue;
+                    }
+
+                    if (fetchedBlock.Ini == null || !fetchedBlock.Ini.ContainsSection("Arm"))
+                    {
+                        reiterate.Add(fetchedBlock);
+                        continue;
+                    }
+
+                    ArmConfiguration lastArmConfiguration = lastConfigurations.GetValueOrDefault(fetchedBlock.Group);
+                    ArmConfiguration armConfiguration = ArmConfiguration.Parse(fetchedBlock.Ini);
+                    armConfiguration.Id = fetchedBlock.Group;
+                    if (!lastArmConfiguration.Default && lastArmConfiguration.GetHashCode().Equals(armConfiguration.GetHashCode()))
+                    {
+                        reiterate.Add(fetchedBlock);
+                        continue;
+                    }
+
+                    ArmGroup arm = CreateArmFromType(1);
+                    arm.Configuration = armConfiguration;
+                    newArms.Add(fetchedBlock.Group, arm);
+                    AddToArm(fetchedBlock, arm);
+                }
+
+                foreach (var block in reiterate)
+                {
+                    if (newArms.ContainsKey(block.Group))
+                    {
+                        AddToArm(block, newArms[block.Group]);
+                        continue;
+                    }
+
+                    ArmConfiguration config = ArmConfiguration.Parse(block.Ini?.ToString() ?? "");
+                    config.Id = block.Group;
+                    ArmGroup arm = CreateArmFromType(0);
+                    arm.Configuration = config;
+                    newArms.Add(block.Group, arm);
+                    AddToArm(block, arm);
+                }
+
+                arms = newArms;
             }
         }
     }

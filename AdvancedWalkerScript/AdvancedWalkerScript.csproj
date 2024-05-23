@@ -39,6 +39,7 @@
   <Import Project="MDK/MDK.paths.props" Condition="exists('MDK/MDK.paths.props')" />
   <ItemGroup>
     <Compile Include="Animation.cs" />
+    <Compile Include="ArmConfiguration.cs" />
     <Compile Include="ArmGroup.cs" />
     <Compile Include="BlockFetcher.cs" />
     <Compile Include="Features\ScriptState.cs" />
@@ -46,14 +47,15 @@
     <Compile Include="Features\Stabilization.cs" />
     <Compile Include="InverseKinematics.cs" />
     <Compile Include="GlobalSuppressions.cs" />
-    <Compile Include="Joint.cs" />
+    <Compile Include="Joints.cs" />
     <Compile Include="LegGroup.cs" />
     <Compile Include="LegConfiguration.cs" />
     <Compile Include="Legs\DigitigradeLegGroup.cs" />
-    <Compile Include="Legs\InverseSpideroidLegGroup.cs" />
+    <Compile Include="Legs\CrabLegGroup.cs" />
     <Compile Include="Legs\SpideroidLegGroup.cs" />
     <Compile Include="Legs\HumanoidLegGroup.cs" />
     <Compile Include="Legs\ChickenWalkerLegGroup.cs" />
+    <Compile Include="Legs\TestLegGroup.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options.props">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

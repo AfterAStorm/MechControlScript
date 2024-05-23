@@ -110,7 +110,7 @@ namespace IngameScript
 
                 cubes.Clear();
                 integrities.Clear();
-                foreach (var group in Legs.Values)
+                foreach (var group in legs.Values)
                 {
                     cubes.Add(new Vector3I((int)group.LeftHipStators.Average(x => x.Stator.Position.X), (int)group.LeftHipStators.Average(x => x.Stator.Position.Y), (int)group.LeftHipStators.Average(x => x.Stator.Position.Z)) - basePos);
                     integrities.Add(GetIntegrity(group.LeftHipStators.Select(x => x.Stator).ToList()));

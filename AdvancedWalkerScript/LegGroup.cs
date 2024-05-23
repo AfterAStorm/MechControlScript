@@ -61,17 +61,20 @@ namespace IngameScript
 
             public LegConfiguration Configuration;
 
-            public List<Joint> LeftHipStators = new List<Joint>();
-            public List<Joint> RightHipStators = new List<Joint>();
+            public List<LegJoint> LeftHipStators = new List<LegJoint>();
+            public List<LegJoint> RightHipStators = new List<LegJoint>();
 
-            public List<Joint> LeftKneeStators = new List<Joint>();
-            public List<Joint> RightKneeStators = new List<Joint>();
+            public List<LegJoint> LeftKneeStators = new List<LegJoint>();
+            public List<LegJoint> RightKneeStators = new List<LegJoint>();
 
-            public List<Joint> LeftFootStators = new List<Joint>();
-            public List<Joint> RightFootStators = new List<Joint>();
+            public List<LegJoint> LeftFootStators = new List<LegJoint>();
+            public List<LegJoint> RightFootStators = new List<LegJoint>();
 
-            public List<Joint> LeftQuadStators = new List<Joint>();
-            public List<Joint> RightQuadStators = new List<Joint>();
+            public List<LegJoint> LeftQuadStators = new List<LegJoint>();
+            public List<LegJoint> RightQuadStators = new List<LegJoint>();
+
+            public List<FetchedBlock> LeftPistons = new List<FetchedBlock>();
+            public List<FetchedBlock> RightPistons = new List<FetchedBlock>();
 
             public List<IMyLandingGear> LeftGears = new List<IMyLandingGear>();
             public List<IMyLandingGear> RightGears = new List<IMyLandingGear>();
@@ -102,7 +105,7 @@ namespace IngameScript
 
             #region # - Methods
 
-            protected virtual void SetAnglesOf(List<Joint> leftStators, List<Joint> rightStators, double leftAngle, double rightAngle, double offset)
+            protected virtual void SetAnglesOf(List<LegJoint> leftStators, List<LegJoint> rightStators, double leftAngle, double rightAngle, double offset)
             {
                 // We could split this into ANOTHER method, but i don't believe it's worth it
                 foreach (var motor in leftStators)
@@ -121,7 +124,7 @@ namespace IngameScript
                 SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),     Configuration.HipOffsets);
                 SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets);
                 SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
-                SetAnglesOf(LeftQuadStators,    RightQuadStators,   (leftQuadDegrees * FeetInversedMultiplier),     (rightQuadDegrees * FeetInversedMultiplier),   Configuration.QuadOffsets);
+                SetAnglesOf(LeftQuadStators,    RightQuadStators,   (leftQuadDegrees * QuadInversedMultiplier),     (rightQuadDegrees * QuadInversedMultiplier),   Configuration.QuadOffsets);
             }
 
             protected virtual void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
@@ -136,6 +139,28 @@ namespace IngameScript
                     rightAngles.FeetDegrees,
                     rightAngles.QuadDegrees
                 );
+            }
+
+            protected double FindThighLength()
+            {
+                if (LeftHipStators.Count == 0 || LeftKneeStators.Count == 0)
+                {
+                    if (RightHipStators.Count == 0 || RightKneeStators.Count == 0)
+                        return -1d;
+                    return (RightHipStators.First().Stator.GetPosition() - RightKneeStators.First().Stator.GetPosition()).Length();
+                }
+                return (LeftHipStators.First().Stator.GetPosition() - LeftKneeStators.First().Stator.GetPosition()).Length();
+            }
+
+            protected double FindCalfLength()
+            {
+                if (LeftFootStators.Count == 0 || LeftKneeStators.Count == 0)
+                {
+                    if (RightFootStators.Count == 0 || RightKneeStators.Count == 0)
+                        return -1d;
+                    return (RightFootStators.First().Stator.GetPosition() - RightKneeStators.First().Stator.GetPosition()).Length();
+                }
+                return (LeftFootStators.First().Stator.GetPosition() - LeftKneeStators.First().Stator.GetPosition()).Length();
             }
 
             /// <summary>

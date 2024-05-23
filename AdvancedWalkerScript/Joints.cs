@@ -22,44 +22,19 @@ namespace IngameScript
 {
     partial class Program
     {
-        public struct JointConfiguration
-        {
-            public static readonly JointConfiguration DEFAULT = new JointConfiguration()
-            {
-                Inversed = false,
-                Offset = 0,
-            };
-
-            public bool Inversed;
-            public double Offset;
-            public double InversedMultiplier => Inversed ? -1 : 1;
-        }
 
         public class Joint
         {
-
             public IMyMotorStator Stator;
-            public JointConfiguration Configuration;
 
             public double Minimum => Stator.LowerLimitDeg;
             public double Maximum => Stator.UpperLimitDeg;
             public bool IsHinge => Stator.BlockDefinition.SubtypeName.Contains("Hinge");
             public bool IsRotor => !IsHinge;
 
-            public Joint(IMyMotorStator stator, JointConfiguration? configuration = null)
-            {
-                Stator = stator;
-                Configuration = configuration ?? JointConfiguration.DEFAULT;
-            }
-
             public Joint(FetchedBlock block)
             {
                 Stator = block.Block as IMyMotorStator;
-                Configuration = new JointConfiguration()
-                {
-                    Inversed = block.Inverted,
-                    Offset = 0
-                };
             }
 
             public double ClampDegrees(double angle)
@@ -85,13 +60,41 @@ namespace IngameScript
 
             public void SetAngle(double angle)
             {
-                Stator.TargetVelocityRPM = GetRPMFor(angle);
+                SetRPM(GetRPMFor(angle));
                 //Stator.RotorLock = (Stator.Angle - ClampDegrees(angle)).Absolute() < 2d;
             }
-
         }
 
-        public class RotorGyroscope : Joint
+        #region # Legs
+
+        public struct LegJointConfiguration
+        {
+            public static readonly LegJointConfiguration DEFAULT = new LegJointConfiguration()
+            {
+                Inversed = false,
+                Offset = 0,
+            };
+
+            public bool Inversed;
+            public double Offset;
+            public double InversedMultiplier => Inversed ? -1 : 1;
+        }
+
+        public class LegJoint : Joint
+        {
+            public LegJointConfiguration Configuration;
+
+            public LegJoint(FetchedBlock block) : base(block)
+            {
+                Configuration = new LegJointConfiguration()
+                {
+                    Inversed = block.Inverted,
+                    Offset = 0
+                };
+            }
+        }
+
+        public class RotorGyroscope : LegJoint
         {
             public RotorGyroscope(FetchedBlock block) : base(block)
             {
@@ -108,20 +111,20 @@ namespace IngameScript
         {
 
             public IMyGyro Gyro;
-            public JointConfiguration Configuration;
+            public LegJointConfiguration Configuration;
             public BlockType GyroType;
 
-            public Gyroscope(IMyGyro gyro, JointConfiguration? configuration = null)
+            public Gyroscope(IMyGyro gyro, LegJointConfiguration? configuration = null)
             {
                 Gyro = gyro;
-                Configuration = configuration ?? JointConfiguration.DEFAULT;
+                Configuration = configuration ?? LegJointConfiguration.DEFAULT;
             }
 
             public Gyroscope(FetchedBlock block)
             {
                 GyroType = block.Type;
                 Gyro = block.Block as IMyGyro;
-                Configuration = new JointConfiguration()
+                Configuration = new LegJointConfiguration()
                 {
                     Inversed = block.Inverted,
                     Offset = 0
@@ -137,5 +140,60 @@ namespace IngameScript
                 Gyro.Roll = roll;
             }
         }
+
+        #endregion
+
+        #region # Arm
+
+        public struct ArmJointConfiguration
+        {
+            public static readonly ArmJointConfiguration DEFAULT = new ArmJointConfiguration()
+            {
+                Inversed = false,
+                Offset = 0,
+                Multiplier = 1
+            };
+
+            public bool Inversed;
+            public double Offset;
+            public double Multiplier;
+            public double InversedMultiplier => Inversed ? -1 : 1;
+
+            public static ArmJointConfiguration Parse(FetchedBlock block)
+            {
+                MyIni ini = new MyIni();
+                ini.TryParse(block.Block.CustomData, "Joint");
+                return new ArmJointConfiguration()
+                {
+                    Inversed = block.Inverted,
+                    Offset = ini.Get("Joint", "Offset").ToDouble(0),
+                    Multiplier = ini.Get("Joint", "Multiplier").ToDouble(1)
+                };
+            }
+
+            public string ToCustomDataString()
+            {
+                MyIni ini = new MyIni();
+                ini.Set("Joint", "Offset", Offset);
+                ini.SetComment("Joint", "Offset", "The starting offset");
+                ini.Set("Joint", "Multiplier", Multiplier);
+                ini.SetComment("Joint", "Multiplier", "A multiplier on how much movement affects this stator");
+
+                ini.SetSectionComment("Joint", "This specific joint's settings, ONLY THIS BLOCK will be affected");
+                return ini.ToString();
+            }
+        }
+
+        public class ArmJoint : Joint
+        {
+            public ArmJointConfiguration Configuration;
+
+            public ArmJoint(FetchedBlock block, ArmJointConfiguration config) : base(block)
+            {
+                Configuration = config;
+            }
+        }
+
+        #endregion
     }
 }

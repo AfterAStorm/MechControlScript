@@ -25,6 +25,42 @@ namespace IngameScript
         public class ArmGroup
         {
 
+            #region # - Properties
+
+            public ArmConfiguration Configuration;
+
+            public List<ArmJoint> PitchJoints = new List<ArmJoint>();
+            public List<ArmJoint> YawJoints = new List<ArmJoint>();
+            public List<ArmJoint> RollJoints = new List<ArmJoint>();
+
+            public List<IMyLandingGear> Magnets = new List<IMyLandingGear>();
+
+            public double Pitch => armPitch;
+            public double Yaw => armYaw;
+            public double Roll => armRoll;
+
+            #endregion
+
+            #region # - Methods
+
+            public void Update()
+            {
+                foreach (var joint in PitchJoints)
+                {
+                    joint.SetAngle((Pitch + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                }
+                foreach (var joint in YawJoints)
+                {
+                    joint.SetAngle((Yaw + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                }
+                foreach (var joint in RollJoints)
+                {
+                    joint.SetAngle((Roll + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                }
+            }
+
+            #endregion
+
         }
     }
 }

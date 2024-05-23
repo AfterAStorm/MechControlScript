@@ -74,7 +74,7 @@ namespace IngameScript
                 double stepHeight = Configuration.StepHeight - .5d;
                 double standingHeight = StandingHeight - .35d;
 
-                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) - .35;
+                double lean = (Animation == Animation.Walk || Animation == Animation.CrouchWalk ? AccelerationLean : StandingLean) + .5;
                 double x =
                     -sin * Configuration.StepLength + lean;
                 double y = MathHelper.Clamp(
@@ -153,6 +153,61 @@ namespace IngameScript
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
+            protected void HandlePistons(float multiplier = 1)
+            {
+                /*
+                 * double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
+                if (radius > 0 && LeftHipStators.Count > 0)
+                {
+                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM + LeftKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    //Log($"target: {target}");
+                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1);
+                    }
+                }
+
+                if (radius > 0 && RightHipStators.Count > 0)
+                {
+                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM + RightKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1);
+                    }
+                }
+                 * 
+                 */
+
+                double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
+                Log($"Piston Radius: {radius}");
+                if (radius > 0 && LeftHipStators.Count > 0 && LeftKneeStators.Count > 0)
+                {
+                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM + LeftKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    Log($"leftTarget: {leftTarget}");
+                    //Log($"target: {target}");
+                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1) * multiplier;
+                    }
+                }
+
+                if (radius > 0 && RightHipStators.Count > 0 && RightKneeStators.Count > 0)
+                {
+                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM + RightKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    Log($"rightTarget: {rightTarget}");
+                    foreach (var piston in RightPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1) * multiplier;
+                    }
+                }
+            }
+
             public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
                 double forwardsDelta = forwardsDeltaVec.Z;
@@ -166,7 +221,7 @@ namespace IngameScript
                     default:
                     case Animation.Crouch:
                     case Animation.Idle:
-                        if ((AnimationStep - 0).Absolute() < .025 || (AnimationStep - 2).Absolute() < .025 || AnimationWaitTime <= 0)
+                        /*if ((AnimationStep - 0).Absolute() < .025 || (AnimationStep - 2).Absolute() < .025 || AnimationWaitTime <= 0)
                         {
                             AnimationStep = 0;
                             AnimationWaitTime = 0;
@@ -175,7 +230,9 @@ namespace IngameScript
                         {
                             OffsetLegs = true;
                             Animation = Animation.Walk;
-                        }
+                        }*/
+                        AnimationStep = 0;
+                        AnimationWaitTime = 0;
                         leftAngles = CalculateAngles(AnimationStep + (OffsetLegs ? IdOffset : 0));
                         rightAngles = CalculateAngles(AnimationStepOffset + (OffsetLegs ? IdOffset : 0));
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))
@@ -250,14 +307,31 @@ namespace IngameScript
 
                 //leftAngles.FeetRadians = Math.PI - leftAngles.HipRadians - leftAngles.KneeRadians;
                 //rightAngles.FeetRadians = Math.PI - rightAngles.HipRadians - rightAngles.KneeRadians;
-                leftAngles.KneeDegrees -= 10;
-                rightAngles.KneeDegrees -= 10;
+                leftAngles.KneeDegrees -= 15;
+                rightAngles.KneeDegrees -= 15;
 
                 leftAngles.FeetDegrees = -(leftAngles.HipDegrees + leftAngles.KneeDegrees);//180 - leftAngles.HipDegrees.Absolute180() - leftAngles.KneeDegrees.Absolute180();
                 rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
+
+                double thigh = FindThighLength();
+                double calf = FindCalfLength();
+
+                /*if (thigh > 0 && calf > 0)
+                {
+                    float gridSize = LeftHipStators[0].Stator.CubeGrid.GridSize;
+                    double target = (LeftHipStators[0].Stator.GetPosition() - LeftFootStators[0].Stator.GetPosition()).Length() /  - 1;
+                    Log($"target: {target}");
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = ((float)target - block.CurrentPosition);
+                    }
+                }*/
+
                 Log("ChickenWalker (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
                 Log("ChickenWalker (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
                 SetAngles(leftAngles * new LegAngles(1, -1, 1), rightAngles * new LegAngles(-1, 1, -1));
+                HandlePistons();
             }
         }
     }

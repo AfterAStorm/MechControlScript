@@ -24,7 +24,7 @@ namespace IngameScript
     {
         /// <summary>
         /// Holds configuration information
-        /// Each configuration has a numerical id starting at zero (default)
+        /// Each configuration has a numerical id starting at one (default)
         /// </summary>
         public struct LegConfiguration
         {
@@ -48,7 +48,7 @@ namespace IngameScript
 
             #region # - Properties
 
-            public static readonly LegConfiguration DEFAULT = Parse("");
+            public static readonly LegConfiguration DEFAULT = Create();
 
             public int Id;
 
@@ -77,7 +77,7 @@ namespace IngameScript
             {
                 ini.Clear();
                 ini.Set("Leg", "LegType", LegType);
-                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t-3 = Inverse/Upsidedown Spideroid\r\n\t4 = Digitigrade");
+                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t-3 = Crab\r\n\t4 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
                 ini.SetComment("Leg", "HipOffsets", "The joints' offsets");
@@ -114,10 +114,12 @@ namespace IngameScript
                     HipOffsets = ini.Get("Leg", "HipOffsets").ToDouble(DefaultHipOffsets),
                     KneeOffsets = ini.Get("Leg", "KneeOffsets").ToDouble(DefaultKneeOffsets),
                     FootOffsets = ini.Get("Leg", "FootOffsets").ToDouble(DefaultFeetOffsets),
+                    QuadOffsets = ini.Get("Leg", "QuadOffsets").ToDouble(DefaultQuadOffsets),
 
                     HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
                     KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
                     FeetInverted = ini.Get("Leg", "FeetInverted").ToBoolean(),
+                    QuadInverted = ini.Get("Leg", "QuadInverted").ToBoolean(),
 
                     ThighLength = ini.Get("Leg", "ThighLength").ToDouble(2.5d),
                     CalfLength = ini.Get("Leg", "CalfLength").ToDouble(2.5d),
