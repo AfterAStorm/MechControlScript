@@ -31,13 +31,13 @@ namespace IngameScript
 
             public List<ArmJoint> PitchJoints = new List<ArmJoint>();
             public List<ArmJoint> YawJoints = new List<ArmJoint>();
-            public List<ArmJoint> RollJoints = new List<ArmJoint>();
+            //public List<ArmJoint> RollJoints = new List<ArmJoint>();
 
             public List<IMyLandingGear> Magnets = new List<IMyLandingGear>();
 
             public double Pitch => armPitch;
             public double Yaw => armYaw;
-            public double Roll => armRoll;
+            //public double Roll => armRoll;
 
             #endregion
 
@@ -47,16 +47,18 @@ namespace IngameScript
             {
                 foreach (var joint in PitchJoints)
                 {
-                    joint.SetAngle((Pitch + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    joint.Stator.TargetVelocityRPM = (float)(Pitch * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    //joint.SetAngle((Pitch + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
                 }
                 foreach (var joint in YawJoints)
                 {
-                    joint.SetAngle((Yaw + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    joint.Stator.TargetVelocityRPM = (float)(Yaw * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    //joint.SetAngle((Yaw + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
                 }
-                foreach (var joint in RollJoints)
+                /*foreach (var joint in RollJoints)
                 {
                     joint.SetAngle((Roll + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
-                }
+                }*/
             }
 
             #endregion

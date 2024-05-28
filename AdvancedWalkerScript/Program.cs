@@ -1,25 +1,8 @@
-﻿using Sandbox.Game.AI.Commands;
-using Sandbox.Game.EntityComponents;
-using Sandbox.ModAPI.Ingame;
+﻿using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
-using Sandbox.ModAPI.Interfaces.Terminal;
-using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
-using VRage;
-using VRage.Collections;
-using VRage.Game;
-using VRage.Game.Components;
-using VRage.Game.GUI.TextPanel;
-using VRage.Game.ModAPI.Ingame;
-using VRage.Game.ModAPI.Ingame.Utilities;
-using VRage.Game.ObjectBuilders.Definitions;
 using VRageMath;
 
 namespace IngameScript
@@ -32,39 +15,45 @@ namespace IngameScript
 
         // -- Configuration -- \\
 
-        // - Blocks
+        // - Controls
 
-        string CockpitName = "auto"; // auto will find the main cockpit; optional (for manually controlling)
-        string RemoteControlName = "auto"; // auto will find a main remote control; optional (for remote controlling)
+        /*
+                 * Mech Controls
+                 * W/S   >> Forward/Backward
+                 * A/D   >> Strafe Left/Right
+                 * Q/E   >> Turn Left/Right
+                 * C     >> Crouch
+                 * Space >> Jetpack
+                 * Mouse >> Torso Twist/Arm Control
+                 *
+                 * Reversed Mech Turn Controls
+                 * W/S   >> (see above)
+                 * A/D   >> Turn Left/Right
+                 * Q/E   >> Strafe Left/Right
+                 * C     >> (see above)
+                 * Space >> (see above)
+                 * Mouse >> (see above)
+                 *
+                 */
 
-        string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block!
-        string StatusLCDName = "Mech Status"; // based on the Name of the block!
-
-        bool UseCockpitLCDs     = true; // should cockpits show the leds instead?
-        int IntegrityLEDNumber  = 1; // starting at one, if the cockpit has more than one screen you can change it here
-        int StatusLEDNumber     = 3; // set to zero to disable
+        bool ReverseTurnControls = false; // see above
 
         // - Mech
 
-        static float StandingHeight = .95f; // a multiplier applied to some leg types, does what it says on the tin
+        static float StandingHeight = .95f; // a multiplier applied to some leg types
+
+        // - Walking
+
+        static float WalkCycleSpeed = 2f; // a global speed multiplier
+        static bool AutoHalt = true; // if it should stop walking when there is no one in the cockpit holding a direction
 
         // - Joints
-
-        /*
-         * Leg Types:
-         * 1    = Chicken walker
-         * 2    = Humanoid
-         * 3    = Spideroid
-         * -3   = Crab
-         * 4    = Digitigrade
-        */
-        // The default is 1, but can be changed in the CustomData of any joint of the leg group
 
         static float AccelerationMultiplier = 1f; // how fast the mech accelerates, 1f is normal, .5f is half speed, 2f is double speed
         static float DecelerationMultiplier = 1f; //  how fast the mech decelerates, same as above
 
         static float MaxRPM = float.MaxValue; // 60f is the max speed for rotors
-        // *Configure motor limits in the blocks themselves!* //
+                                              // *Configure motor limits in the blocks themselves!* //
 
         static double StandingLean = 0d; // the offset of where the foot sits when standing (idling)
         static double AccelerationLean = 0d; // the offset of where the foot sits when walking
@@ -72,37 +61,21 @@ namespace IngameScript
         static float TorsoTwistSensitivity = 1f; // how sensitive the torso twist is, can also change based on the rotor's torque
         static float TorsoTwistMaxSpeed = 60f; // maximum RPM of the torso twist rotor;
 
-        // - Walking
-
-        static float WalkCycleSpeed = 2f;//3f;
-        static bool AutoHalt = true; // if it should slow down when there is no one in the cockpit holding a direction
-
         // - Stablization / Steering
 
         static double SteeringSensitivity = 5; // x / 60th speed, specifies rotor/gyro RPM divided by 60, so 30 is half max power/rpm
 
-        // - Controls
+        // - Blocks
 
-        /*
-         * Mech Controls
-         * W/S   >> Forward/Backward
-         * A/D   >> Strafe Left/Right
-         * Q/E   >> Turn Left/Right
-         * C     >> Crouch
-         * Space >> Jetpack
-         * Mouse >> Torso Twist/Arm Control
-         * 
-         * Reversed Mech Turn Controls
-         * W/S   >> (see above)
-         * A/D   >> Turn Left/Right
-         * Q/E   >> Strafe Left/Right
-         * C     >> (see above)
-         * Space >> (see above)
-         * Mouse >> (see above)
-         * 
-         */
+        string CockpitName = "auto"; // auto will find the main cockpit; optional (for manually controlling)
+        string RemoteControlName = "auto"; // auto will find a main remote control; optional (for remote controlling)
 
-        bool ReverseTurnControls = false; // see above
+        string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block
+        string StatusLCDName = "Mech Status"; // based on the Name of the block
+
+        bool UseCockpitLCDs = true; // should cockpits show the leds instead?
+        int IntegrityLEDNumber = 1; // starting at one, if the cockpit has more than one screen you can change it here
+        int StatusLEDNumber = 3; // set to zero to disable
 
         // -- Diagnostics -- \\
 
@@ -144,14 +117,6 @@ namespace IngameScript
 
         ScriptState state;
 
-        enum ControlMode
-        {
-            Legs,
-            Arms
-        }
-
-        ControlMode mode = ControlMode.Arms;
-
         double deltaOffset = 0;
         bool setupMode = false;
 
@@ -179,9 +144,8 @@ namespace IngameScript
 
         public static double armPitch = 0;
         public static double armYaw = 0;
-        public static double armRoll = 0;
 
-        public static double animationStep = 0;
+        public static double animationStepCounter = 0;
 
         bool thrustersEnabled = true;
         List<IMyThrust> thrusters = new List<IMyThrust>();
@@ -325,8 +289,6 @@ namespace IngameScript
 
         public void Load()
         {
-            Echo("storage:" + Storage);
-            Echo("state:" + state.ToString());
             state.Parse(Storage ?? "");
         }
 
@@ -426,7 +388,7 @@ namespace IngameScript
                         break;
                     case "walk": // b or backwards to go backwards, forward is infered and default
                         if (arguments.Length > 1)
-                            movementOverride = arguments[1].Equals("back") ? Vector3.Backward : Vector3.Forward;
+                            movementOverride = arguments[1].Equals("toggle") ? (movementOverride == Vector3.Forward ? Vector3.Zero : Vector3.Forward) : arguments[1].Equals("back") ? Vector3.Backward : Vector3.Forward;
                         else
                             movementOverride = Vector3.Forward;
                         break;
@@ -473,7 +435,7 @@ namespace IngameScript
                         break;
 
                     case "lean":
-                        StandingLean += ParseFloatArgument(StandingHeight, arguments[1]);
+                        StandingLean += ParseFloatArgument((float)StandingLean, arguments[1]);
                         AccelerationLean = StandingLean;
                         break;
 
@@ -510,7 +472,7 @@ namespace IngameScript
                     case "arm":
                         armPitch = 0;
                         armYaw = 0;
-                        armRoll = 0;
+                        //armRoll = 0;
                         break;
                 }
                 if (!updateSource.HasFlag(UpdateType.Update1))
@@ -569,16 +531,9 @@ namespace IngameScript
             float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
             HandleStabilization(turnValue);
 
-            if (mode == ControlMode.Arms)
-            {
-                armPitch += -rotationInput.X * .2;
-                armYaw += rotationInput.Y * .05;
-                armRoll += 0;
-            }
-            else
-            {
-                HandleTorsoTwist(rotationInput.Y);
-            }
+            armPitch = -rotationInput.X;
+            armYaw = rotationInput.Y;
+            HandleTorsoTwist(rotationInput.Y);
 
             Log($"turnValue: {turnValue}");
             Log($"azimuthStators: {azimuthStators.Count}");
@@ -670,10 +625,25 @@ namespace IngameScript
                 }
             }
 
-            animationStep += (Math.Abs(movementDelta.Z) <= .001 ? movementDelta.Length() : movementDelta.Z) * WalkCycleSpeed;
-            animationStep %= 4;
+            double animationStepMovement = (Math.Abs(movementDelta.Z) <= .001 ? movementDelta.Length() : movementDelta.Z) * WalkCycleSpeed;
+
+            animationStepCounter += animationStepMovement;
+            //animationStep %= 4;
+            if (animationStepMovement == 0)
+            {
+                // 0
+                // 1
+                // 2
+                // 3
+                // 3.99
+                if (Math.Abs(2 - animationStepCounter % 4) <= 1)
+                    animationStepCounter = 2;
+                else
+                    animationStepCounter = 0;
+            }
+
             //animationStep = forcedStep;
-            Log("step:" + animationStep);
+            Log("step:" + animationStepCounter);
             foreach (LegGroup leg in legs.Values)
                 leg.Update(movementDelta, movementVec, originalDelta);
 

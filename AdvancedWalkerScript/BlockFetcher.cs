@@ -68,6 +68,7 @@ namespace IngameScript
             public BlockSide Side;
             public int Group;
             public bool Inverted;
+            public string Name;
 
             //public bool AttachToLeg;
 
@@ -104,14 +105,14 @@ namespace IngameScript
                         return new HumanoidLegGroup();
                     case 3:
                         return new SpideroidLegGroup();
-                    case -3:
-                        return new CrabLegGroup();
                     case 4:
-                        return new DigitigradeLegGroup();
+                        return new CrabLegGroup();
                     case 5:
+                        return new DigitigradeLegGroup();
+                    case 9:
                         return new TestLegGroup();
                     default:
-                        throw new Exception("Leg type not implemented!");
+                        throw new Exception($"Leg type {type} not implemented!");
                 }
             }
 
@@ -278,10 +279,24 @@ namespace IngameScript
                         Inverted = match.Groups[4].Value.Equals("-") || match.Groups[1].Value.EndsWith("-"),
                         Ini = ini,
 
+                        Name = match.Groups[0].Value
+
                         //AttachToLeg = blockType.Value != BlockType.TorsoTwist
                     };
                 }
                 return null;
+            }
+
+            static bool IsForArm(FetchedBlock block)
+            {
+                switch (block.Type)
+                {
+                    case BlockType.Yaw:
+                    case BlockType.Pitch:
+                        return true;
+                    default:
+                        return false;
+                }
             }
 
             private static void AddToLeg(FetchedBlock block, LegGroup leg) // adds a fetched block to the leg
@@ -365,6 +380,8 @@ namespace IngameScript
                     if (!triedFetch.HasValue)
                         continue;
                     FetchedBlock fetched = triedFetch.Value;
+                    if (IsForArm(fetched))
+                        continue;
                     Log($"Parsed block {fetched.Block.CustomName}");
                     if (newLegs.ContainsKey(fetched.Group)) // leg already exists
                     {
@@ -430,9 +447,9 @@ namespace IngameScript
                     case BlockType.Yaw:
                         arm.YawJoints.Add(new ArmJoint(block, jointConfig));
                         break;
-                    case BlockType.Roll:
+                    /*case BlockType.Roll:
                         arm.RollJoints.Add(new ArmJoint(block, jointConfig));
-                        break;
+                        break;*/
                     case BlockType.Magnet:
                         arm.Magnets.Add(block.Block as IMyLandingGear);
                         break;
@@ -458,6 +475,8 @@ namespace IngameScript
                     if (!triedFetch.HasValue)
                         continue;
                     FetchedBlock fetchedBlock = triedFetch.Value;
+                    if (!IsForArm(fetchedBlock))
+                        continue;
                     if (newArms.ContainsKey(fetchedBlock.Group))
                     {
                         AddToArm(fetchedBlock, newArms[fetchedBlock.Group]);

@@ -63,7 +63,7 @@ namespace IngameScript
             public double StepLength;
             public double StepHeight;
 
-            public double AnimationSpeed => WalkCycleSpeed;
+            public double AnimationSpeed;// => WalkCycleSpeed;
             public double CrouchSpeed;
 
             private int defaultValue;
@@ -75,33 +75,47 @@ namespace IngameScript
 
             public string ToCustomDataString()
             {
+                /**
+                 * 
+; Change joint offsets in degrees
+HipOffsets=0
+KneeOffsets=0
+FootOffsets=0
+; How far forwards/backwards and up/down legs step
+; 0.5 is half, 1 is default, 2 is double
+StepLength=1
+StepHeight=1
+; How fast legs crouch
+CrouchSpeed=1
+; Change theoretical apendage lengths
+ThighLength=2.5
+CalfLength=2.5
+
+                 */
+
                 ini.Clear();
                 ini.Set("Leg", "LegType", LegType);
-                ini.SetComment("Leg", "LegType", "The leg type:\r\n\t1 = Chicken walker\r\n\t2 = Humanoid\r\n\t3 = Spideroid\r\n\t-3 = Crab\r\n\t4 = Digitigrade");
+                ini.SetComment("Leg", "LegType", "1 = Chicken walker\n2 = Humanoid\n3 = Spideroid\n4 = Crab\n5 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
-                ini.SetComment("Leg", "HipOffsets", "The joints' offsets");
+                ini.SetComment("Leg", "HipOffsets", "The joints' offsets (in degrees)");
                 ini.Set("Leg", "KneeOffsets", KneeOffsets);
                 ini.Set("Leg", "FootOffsets", FootOffsets);
+                ini.Set("Leg", "QuadOffsets", QuadOffsets);
 
-                ini.Set("Leg", "HipsInverted", HipsInverted);
-                ini.SetComment("Leg", "HipsInverted", "If the joints should be inverted or not");
-                ini.Set("Leg", "KneesInverted", KneesInverted);
-                ini.Set("Leg", "FeetInverted", FeetInverted);
+                ini.Set("Leg", "StepLength", StepLength);
+                ini.SetComment("Leg", "StepLength", "How far forwards/backwards and up/down legs step\n0.5 is half, 1 is default, 2 is double");
+                ini.Set("Leg", "StepHeight", StepHeight);
+
+                ini.Set("Leg", "WalkSpeed", AnimationSpeed);
+                ini.Set("Leg", "CrouchSpeed", CrouchSpeed);
+                ini.SetComment("Leg", "CrouchSpeed", "How fast legs walk and crouch");
 
                 ini.Set("Leg", "ThighLength", ThighLength);
                 ini.Set("Leg", "CalfLength", CalfLength);
-                ini.SetComment("Leg", "ThighLength", "If set to any number lower than zero (-1 for example), it will automatically get approximate the length");
+                ini.SetComment("Leg", "ThighLength", "Change theoretical apendage lengths");
 
-                ini.Set("Leg", "StepLength", StepLength);
-                ini.SetComment("Leg", "StepLength", "This changes step length -- how far forwards/backwards the feet go,\n0.5 is half, 1 is default, 2 is double");
-                ini.Set("Leg", "StepHeight", StepHeight);
-                ini.SetComment("Leg", "StepHeight", "This changes step height -- how far up the feet will go");
-
-                ini.Set("Leg", "CrouchSpeed", CrouchSpeed);
-                ini.SetComment("Leg", "CrouchSpeed", "How fast crouching is");
-
-                ini.SetSectionComment("Leg", $"These are all the settings associated with this leg group (group {Id}),\nchanging these will change all the other joints in the same group");
+                ini.SetSectionComment("Leg", $"Leg (group {Id}) settings. These change all of the joints in the same group.");
                 return ini.ToString();
             }
 
@@ -127,6 +141,7 @@ namespace IngameScript
                     StepLength = ini.Get("Leg", "StepLength").ToDouble(1),
                     StepHeight = ini.Get("Leg", "StepHeight").ToDouble(1),
 
+                    AnimationSpeed = ini.Get("Leg", "WalkSpeed").ToDouble(2),
                     CrouchSpeed = ini.Get("Leg", "CrouchSpeed").ToDouble(1),
 
                     defaultValue = 1

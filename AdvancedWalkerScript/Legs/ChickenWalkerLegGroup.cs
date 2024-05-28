@@ -153,61 +153,6 @@ namespace IngameScript
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
-            protected void HandlePistons(float multiplier = 1)
-            {
-                /*
-                 * double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
-                if (radius > 0 && LeftHipStators.Count > 0)
-                {
-                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM + LeftKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
-                    //Log($"target: {target}");
-                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
-                    foreach (var piston in LeftPistons)
-                    {
-                        var block = piston.Block as IMyPistonBase;
-                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1);
-                    }
-                }
-
-                if (radius > 0 && RightHipStators.Count > 0)
-                {
-                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM + RightKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
-                    foreach (var piston in LeftPistons)
-                    {
-                        var block = piston.Block as IMyPistonBase;
-                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1);
-                    }
-                }
-                 * 
-                 */
-
-                double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
-                Log($"Piston Radius: {radius}");
-                if (radius > 0 && LeftHipStators.Count > 0 && LeftKneeStators.Count > 0)
-                {
-                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM + LeftKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
-                    Log($"leftTarget: {leftTarget}");
-                    //Log($"target: {target}");
-                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
-                    foreach (var piston in LeftPistons)
-                    {
-                        var block = piston.Block as IMyPistonBase;
-                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1) * multiplier;
-                    }
-                }
-
-                if (radius > 0 && RightHipStators.Count > 0 && RightKneeStators.Count > 0)
-                {
-                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM + RightKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
-                    Log($"rightTarget: {rightTarget}");
-                    foreach (var piston in RightPistons)
-                    {
-                        var block = piston.Block as IMyPistonBase;
-                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1) * multiplier;
-                    }
-                }
-            }
-
             public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
                 double forwardsDelta = forwardsDeltaVec.Z;

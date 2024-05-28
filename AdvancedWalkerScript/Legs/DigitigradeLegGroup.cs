@@ -173,7 +173,7 @@ namespace IngameScript
                     default:
                     case Animation.Crouch:
                     case Animation.Idle:
-                        if ((AnimationStep - 0).Absolute() < .025 || (AnimationStep - 2).Absolute() < .025 || AnimationWaitTime <= 0)
+                        /*if ((AnimationStep - 0).Absolute() < .025 || (AnimationStep - 2).Absolute() < .025 || AnimationWaitTime <= 0)
                         {
                             AnimationStep = 0;
                             AnimationWaitTime = 0;
@@ -182,7 +182,9 @@ namespace IngameScript
                         {
                             OffsetLegs = true;
                             Animation = Animation.Walk;
-                        }
+                        }*/
+                        AnimationStep = 0;
+                        AnimationWaitTime = 0;
                         leftAngles = CalculateAngles(AnimationStep + (OffsetLegs ? IdOffset : 0));
                         rightAngles = CalculateAngles(AnimationStepOffset + (OffsetLegs ? IdOffset : 0));
                         foreach (IMyLandingGear lg in LeftGears.Concat(RightGears))

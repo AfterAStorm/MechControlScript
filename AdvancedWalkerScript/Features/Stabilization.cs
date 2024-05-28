@@ -93,8 +93,8 @@ namespace IngameScript
             {
                 if (!stator.Stator.IsSharingInertiaTensor())
                     Warn($"Share Inertia Tensor", $"Share intertia tensor is disabled for azimuth/yaw stabilization rotor {stator.Stator.CustomName}, enable it for better results");
-                foreach (var gyro in stator.SubGyros)
-                    gyro.Enabled = isTurning;
+                //foreach (var gyro in stator.SubGyros)
+                //    gyro.Enabled = isTurning;
 
                 stator.SetRPM(azimuthValue * (float)stator.Configuration.InversedMultiplier);
             }

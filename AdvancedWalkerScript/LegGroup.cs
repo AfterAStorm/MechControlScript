@@ -199,10 +199,109 @@ namespace IngameScript
                 double multiplier = forwardsDelta / Math.Abs(forwardsDelta);
                 Log($"mul: {multiplier}");
                 //if (!double.IsNaN(multiplier))
-                    AnimationStep = animationStep;
+                    AnimationStep = (animationStepCounter * Configuration.AnimationSpeed) % 4;
                 //else
                 //    AnimationStep += (!double.IsNaN(multiplier) ? forwardsDelta : delta * (LastDelta / Math.Abs(LastDelta)) / 2) * Configuration.AnimationSpeed;//delta * (!double.IsNaN(multiplier) ? multiplier : 1) * Configuration.AnimationSpeed;
                 AnimationStep %= 4; // 0 to 3
+            }
+
+            #endregion
+
+            #region Experimental
+
+            int leftLegCounter = 0;
+            int rightLegCounter = 0;
+
+            private void HandlePistonGroup(List<FetchedBlock> pistons, List<LegJoint> hips, List<LegJoint> knees, List<LegJoint> feet, ref int counter)
+            {
+                foreach (var piston in pistons)
+                {
+                    var block = piston.Block as IMyPistonBase;
+                    var speed = Math.Abs(block.Velocity) * (piston.Inverted ? -1 : 1);
+
+                    double rpm = 0;
+                    if (piston.Name.ToLower().Contains("h") && hips.Count > 0)
+                        rpm += hips[0].Stator.TargetVelocityRPM;
+                    else if (piston.Name.ToLower().Contains("k") && knees.Count > 0)
+                        rpm += knees[0].Stator.TargetVelocityRPM;
+                    else if (piston.Name.ToLower().Contains("f") && feet.Count > 0)
+                        rpm += feet[0].Stator.TargetVelocityRPM;
+                    if (rpm > 0)
+                    {
+                        counter = MathHelper.Clamp(counter + 1, -15, 15);
+                        if (counter > 0)
+                            block.Velocity = speed;
+                    }
+                    else
+                    {
+                        counter = MathHelper.Clamp(counter - 1, -15, 15);
+                        if (counter < 0)
+                            block.Velocity = speed;
+                        block.Velocity = -speed;
+                    }
+                    block.Enabled = true;//Math.Abs(rpm) > .05;
+                }
+            }
+
+            protected void HandlePistons(float multiplier = 1)
+            {
+                /*
+                 * double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
+                if (radius > 0 && LeftHipStators.Count > 0)
+                {
+                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM + LeftKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    //Log($"target: {target}");
+                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1);
+                    }
+                }
+
+                if (radius > 0 && RightHipStators.Count > 0)
+                {
+                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM + RightKneeStators[0].Stator.TargetVelocityRPM) * ((2 * Math.PI) / 60);
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1);
+                    }
+                }
+                 * 
+                 */
+
+                HandlePistonGroup(LeftPistons, LeftHipStators, LeftKneeStators, LeftFootStators, ref leftLegCounter);
+                HandlePistonGroup(RightPistons, RightHipStators, RightKneeStators, RightFootStators, ref rightLegCounter);
+
+                /*double radius = LeftHipStators.Count > 0 ? LeftHipStators[0].Stator.CubeGrid.GridSize * 2 : (RightHipStators.Count > 0 ? RightHipStators[0].Stator.CubeGrid.GridSize * 2 : -1);
+                double constant = ((2 * Math.PI) / 60);
+                Log($"Piston Radius: {radius}");
+                if (radius > 0 && LeftHipStators.Count > 0/* && LeftKneeStators.Count > 0*//*)
+                /*{
+                    double leftTarget = radius * (LeftHipStators[0].Stator.TargetVelocityRPM /*+ LeftKneeStators[0].Stator.TargetVelocityRPM*//*) * constant;
+                    Log($"leftTarget: {leftTarget}");
+                    //Log($"target: {target}");
+                    //Log($"grod: {LeftHipStators[0].Stator.CubeGrid.GridSize}");
+                    foreach (var piston in LeftPistons)
+                    {
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)leftTarget * (piston.Inverted ? -1 : 1) * multiplier;
+                    }
+                }
+
+                if (radius > 0 && RightHipStators.Count > 0 /*&& RightKneeStators.Count > 0*//*)
+                {
+                    double rightTarget = radius * (RightHipStators[0].Stator.TargetVelocityRPM /*+ RightKneeStators[0].Stator.TargetVelocityRPM*//*) * constant;
+                    Log($"rightTarget: {rightTarget}");
+                    foreach (var piston in RightPistons)
+                    {
+                        double rpm = 0;
+                        if (piston.)
+                        var block = piston.Block as IMyPistonBase;
+                        block.Velocity = (float)rightTarget * (piston.Inverted ? -1 : 1) * multiplier;
+                    }
+                }*/
             }
 
             #endregion

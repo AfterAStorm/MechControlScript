@@ -22,7 +22,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class HumanoidLegGroup : ChickenWalkerLegGroup
+        public class HumanoidLegGroup : LegGroup
         {
             protected override LegAngles CalculateAngles(double step)
             {

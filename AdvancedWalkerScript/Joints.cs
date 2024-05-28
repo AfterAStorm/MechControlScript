@@ -55,7 +55,7 @@ namespace IngameScript
 
             public void SetRPM(float rotationsPerMinute)
             {
-                Stator.TargetVelocityRPM = rotationsPerMinute;
+                Stator.TargetVelocityRPM = rotationsPerMinute * .9f;
             }
 
             public void SetAngle(double angle)
