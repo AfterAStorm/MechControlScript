@@ -55,7 +55,7 @@ namespace IngameScript
 
             public void SetRPM(float rotationsPerMinute)
             {
-                Stator.TargetVelocityRPM = rotationsPerMinute * .9f;
+                Stator.TargetVelocityRPM = rotationsPerMinute;// * .9f;
             }
 
             public void SetAngle(double angle)
@@ -158,6 +158,7 @@ namespace IngameScript
             public double Offset;
             public double Multiplier;
             public double InversedMultiplier => Inversed ? -1 : 1;
+            private string Name;
 
             public static ArmJointConfiguration Parse(FetchedBlock block)
             {
@@ -165,6 +166,7 @@ namespace IngameScript
                 ini.TryParse(block.Block.CustomData, "Joint");
                 return new ArmJointConfiguration()
                 {
+                    Name = block.Block.CustomName,
                     Inversed = block.Inverted,
                     Offset = ini.Get("Joint", "Offset").ToDouble(0),
                     Multiplier = ini.Get("Joint", "Multiplier").ToDouble(1)
@@ -175,11 +177,11 @@ namespace IngameScript
             {
                 MyIni ini = new MyIni();
                 ini.Set("Joint", "Offset", Offset);
-                ini.SetComment("Joint", "Offset", "The starting offset");
+                ini.SetComment("Joint", "Offset", "Specifies where the joint's \"zero\" is");
                 ini.Set("Joint", "Multiplier", Multiplier);
-                ini.SetComment("Joint", "Multiplier", "A multiplier on how much movement affects this stator");
+                ini.SetComment("Joint", "Multiplier", "How much movement affects this stator");
 
-                ini.SetSectionComment("Joint", "This specific joint's settings, ONLY THIS BLOCK will be affected");
+                ini.SetSectionComment("Joint", $"Joint ({Name}) settings. Only this block will be affected.");
                 return ini.ToString();
             }
         }

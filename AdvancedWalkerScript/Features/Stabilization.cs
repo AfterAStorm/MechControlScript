@@ -62,12 +62,12 @@ namespace IngameScript
             double pitch = Vector3D.Angle(forward, gravityAlignedForward) * Math.Sign(pitchDot);
             double roll = Vector3D.Angle(right, gravityAlignedRight) * Math.Sign(rollDot);*/
 
-            Vector3D plane = forward - (Vector3D.Dot(forward, gravity) / gravity.Length()) * (gravity / gravity.Length());
+            //Vector3D plane = forward - (Vector3D.Dot(forward, gravity) / gravity.Length()) * (gravity / gravity.Length());
             double pitch = AngleBetween(forward, ProjectOnPlane(forward, gravity.Normalized())); //Math.Atan2(Vector3D.Cross(forward, plane).Normalize(), Vector3.Dot(forward, plane));
-            plane = right - (Vector3D.Dot(right, gravity) / gravity.Length()) * (gravity / gravity.Length());
+            Vector3D plane = right - (Vector3D.Dot(right, gravity) / gravity.Length()) * (gravity / gravity.Length());
             double roll = Math.Atan2(Vector3D.Cross(right, plane).Normalize(), Vector3.Dot(right, plane)) * Math.Sign(Vector3.Dot(right, gravity));
 
-            pitch = pitch * Math.Sign(forward.Dot(gravity.Normalized()));
+            pitch *= Math.Sign(forward.Dot(gravity.Normalized()));
 
             Log($"pitch?: {pitch} >< {forward.Dot(gravity.Normalized())}");
             Log($"roll?: {roll}");
@@ -132,12 +132,12 @@ namespace IngameScript
                     gyro.Gyro.Pitch = elevationValue * (float)gyro.Configuration.InversedMultiplier;
 
                 if (gyro.GyroType == BlockType.GyroscopeAzimuth && !isTurning)
-                    gyro.Gyro.Enabled = false;
+                    gyro.Gyro.Enabled = true;
                 else
-                    gyro.Gyro.Enabled = /*isTurning ?*/
+                    gyro.Gyro.Enabled = true;/*isTurning ?*//*
                         gyro.Gyro.Roll.Absolute() > 0.1f ||
                         gyro.Gyro.Yaw.Absolute() > 0.1f ||
-                        gyro.Gyro.Pitch.Absolute() > 0.1f;// : true;
+                        gyro.Gyro.Pitch.Absolute() > 0.1f;// : true;*/
             }
         }
     }

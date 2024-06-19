@@ -60,8 +60,8 @@ namespace IngameScript
                 ini.Set("Arm", "na", false);
                 ini.SetComment("Arm", "na", "tbd");
 
-                ini.SetSectionComment("Arm", $"These are all the settings associated with this arm group (group {Id}),\nchanging these will change all the other joints in the same group");
-                return ini.ToString();
+                ini.SetSectionComment("Arm", $"Arm (group {Id}) settings. These change all of the joints in the same arm.");
+                return "";//ini.ToString();
             }
 
             public override int GetHashCode()

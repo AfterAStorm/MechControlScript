@@ -155,6 +155,13 @@ namespace IngameScript
         float turnOverride = 0;
         double targetTorsoTwistAngle = -1;
 
+        double lastSetupModeTick = 0;
+
+        static double GetUnixTime()
+        {
+            return DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
+        }
+
         //IMyFlightMovementBlock moveBlock;
 
         static void Log(params object[] messages)
@@ -176,6 +183,7 @@ namespace IngameScript
         /// </summary>
         void GetBlocks()
         {
+            setupWarnings.Clear();
             //moveBlock = BlockFinder.GetBlocksOfType<IMyFlightMovementBlock>()[0];
             debug = GridTerminalSystem.GetBlockWithName(DebugLCD) as IMyTextPanel;
             debug2 = GridTerminalSystem.GetBlockWithName(DebugLCD + "2") as IMyTextPanel;
@@ -300,6 +308,24 @@ namespace IngameScript
             Storage = state.Serialize();
         }
 
+        struct Warning
+        {
+            public string Title;
+            public string Info;
+        }
+
+        static List<Warning> setupWarnings = new List<Warning>();
+
+        static void StaticWarn(string title, string info)
+        {
+            if (!setupWarnings.Any(w => w.Title == title))
+                setupWarnings.Add(new Warning()
+                {
+                    Title = title,
+                    Info = info
+                });
+        }
+
         void Warn(string title, string info)
         {
             Echo($"[Color=#dcf71600]Warning: {title}[/Color]");
@@ -352,6 +378,8 @@ namespace IngameScript
 
             if (setupMode)
                 Warn("Setup Mode Active", "Any changes will be detected, beware that the script uses a lot more resources");
+
+            setupWarnings.ForEach(warning => Warn(warning.Title, warning.Info));
 
             // Some Setup Warnings
             if (cockpits.Count <= 0)
@@ -415,6 +443,7 @@ namespace IngameScript
 
                     case "setup":
                         setupMode = !setupMode;
+                        lastSetupModeTick = GetUnixTime();
                         break;
 
                     case "debug":
@@ -488,9 +517,13 @@ namespace IngameScript
 
             if (setupMode)
             {
-                Save();
-                Load();
-                GetBlocks();
+                if (GetUnixTime() - lastSetupModeTick > .5d)
+                {
+                    lastSetupModeTick = GetUnixTime();
+                    Save();
+                    Load();
+                    GetBlocks();
+                }
             }
 
             debug?.WriteText(""); // clear
@@ -512,8 +545,8 @@ namespace IngameScript
             // Screens
             if (integrityRenderers.Count > 0)
             {
-                //integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
-                //integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
+                /*integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
+                integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());*/
             }
 
             // Get delta
@@ -588,9 +621,9 @@ namespace IngameScript
             Log(movement.ToString());
 
             double originalDelta = delta;
-            Log($"Before delta: {delta}");
+            Log($"Delta: {delta}");
             //delta *= -movement.Z; // negative because -Z is forwards!
-            Log($"After delta: {delta}");
+            //Log($"After delta: {delta}");
 
             Vector3 movementVec = new Vector3(movement.X, turnValue, -movement.Z);
             Vector3 movementDelta = movementVec * new Vector3((float)delta);

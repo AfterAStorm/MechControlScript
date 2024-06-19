@@ -112,7 +112,9 @@ namespace IngameScript
                     case 9:
                         return new TestLegGroup();
                     default:
-                        throw new Exception($"Leg type {type} not implemented!");
+                        StaticWarn("Leg Type Not Supported!", $"Leg type {type} is not supported!");
+                        return new ChickenWalkerLegGroup();
+                        //throw new Exception($"Leg type {type} not implemented!");
                 }
             }
 

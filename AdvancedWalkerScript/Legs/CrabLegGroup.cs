@@ -25,11 +25,16 @@ namespace IngameScript
     {
         public class CrabLegGroup : LegGroup
         {
+            double Map(double x, double r1_min, double r1_max, double r2_min, double r2_max)
+            {
+                return (x - r1_min) * (r2_max - r2_min) / (r1_max - r1_min) + r2_min;
+            }
+
             protected LegAngles CalculateAngles(double step, Vector3 forwardsDeltaVec, Vector3 movementVec, bool left, bool invertedCrouch = false)
             {
                 step = step.Modulo(4);
                 double turnRotation = Math.Sign(forwardsDeltaVec.Y);
-                double leftInverse = left ? -1 : 1;
+                double leftInverse = left ? -1d : 1d;
                 double idOffset = IdOffset == 0 ? 1 : -1;
 
                 LegAngles angles = new LegAngles();
@@ -72,14 +77,22 @@ namespace IngameScript
                 Log($"turn rotation: {turnRotation}");
 
                 double x = 3;
-                double y = .5;
+                double y = .65;
+
+                // y+ is down
+                // x+ is ????
 
                 if (Animation.IsTurn()) // turn
                     y += MathHelper.Clamp((cos), -1, 0);//MathHelper.Clamp(cos * , 0, 1) * 1;
                 else if (Animation.IsWalk() && Math.Abs(movementVec.X) > 0) // strafe
                 {
-                    x += (sin) * 1 * leftInverse;
-                    y += (cos) * .5;
+                    //x += (sin) * 1 * leftInverse;
+                    //y += (cos) * .5;
+                    // x += MathHelper.Clamp(sin, -1, 1) * 1;
+                    // y += -MathHelper.Clamp(cos, 0, 1);
+                    //  x -= .5d - (sin * .5d);
+                    x -= Math.Sign(movementVec.X) * leftInverse * sin * .85 + .85;//.5 + sin * leftInverse * .5;//-= .5d - ((cos * leftInverse) * .5d);
+                    y += -MathHelper.Clamp(cos + .5, 0, 1) * .5d;
                 }
                 else if (Animation.IsWalk()) // walk
                 {
@@ -87,10 +100,17 @@ namespace IngameScript
                     y += (cos - 1) * .5;
                 }
 
+                /* DANCE
+                 * x += -Math.Abs(sin * leftInverse);
+                   y += cos * .5;
+                 */
+
                 y -= 1.5 * CrouchWaitTime;
-                thigh = 2.5; // TODO: calculate
-                calf = 2.75;
+                thigh = 2.5;//Configuration.ThighLength;//2.5; // TODO: calculate
+                calf = 2.5;//Configuration.CalfLength + .25;//2.75;
                 //                                            2.5  , 2.75
+                //y = 1 + MathHelper.Clamp(cos * .5, 0, .5) * 2;
+                //x = sin * .5 + 3.5;
                 LegAngles ik = InverseKinematics.CalculateLeg(thigh, calf, x, y);//InverseKinematics.CalculateLeg(Configuration.ThighLength, Configuration.CalfLength, 1, 1);
 
                 if (Animation.IsTurn())
@@ -111,7 +131,7 @@ namespace IngameScript
             
             public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
-                double forwardsDelta = forwardsDeltaVec.Z;
+                //double forwardsDelta = forwardsDeltaVec.Z;
                 base.Update(forwardsDeltaVec, movementVector, delta);
                 Log($"Step: {AnimationStep} {Animation} {delta}");
 

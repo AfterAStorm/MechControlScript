@@ -73,6 +73,12 @@ namespace IngameScript
 
             #region # - Methods
 
+            public override bool Equals(object obj)
+            {
+                LegConfiguration a = (LegConfiguration)obj;
+                return LegType == a.LegType && HipOffsets == a.HipOffsets && KneeOffsets == a.KneeOffsets && FootOffsets == a.FootOffsets && ThighLength == a.ThighLength && CalfLength == a.CalfLength && StepLength == a.StepHeight && StepHeight == a.StepHeight && AnimationSpeed == a.AnimationSpeed && CrouchSpeed == a.CrouchSpeed;
+            }
+
             public string ToCustomDataString()
             {
                 /**
@@ -130,10 +136,10 @@ CalfLength=2.5
                     FootOffsets = ini.Get("Leg", "FootOffsets").ToDouble(DefaultFeetOffsets),
                     QuadOffsets = ini.Get("Leg", "QuadOffsets").ToDouble(DefaultQuadOffsets),
 
-                    HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
+                    /*HipsInverted = ini.Get("Leg", "HipsInverted").ToBoolean(),
                     KneesInverted = ini.Get("Leg", "KneesInverted").ToBoolean(),
                     FeetInverted = ini.Get("Leg", "FeetInverted").ToBoolean(),
-                    QuadInverted = ini.Get("Leg", "QuadInverted").ToBoolean(),
+                    QuadInverted = ini.Get("Leg", "QuadInverted").ToBoolean(),*/
 
                     ThighLength = ini.Get("Leg", "ThighLength").ToDouble(2.5d),
                     CalfLength = ini.Get("Leg", "CalfLength").ToDouble(2.5d),
