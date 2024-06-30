@@ -26,31 +26,12 @@ namespace IngameScript
         /// Holds configuration information
         /// Each configuration has a numerical id starting at one (default)
         /// </summary>
-        public struct LegConfiguration
+        public class LegConfiguration : JointConfiguration
         {
-
-            /*
-             * 
-             * Formatted as such:
-             * 
-             * [Leg]
-             * HipOffsets=x
-             * KneeOffsets=x
-             * FeetOffsets=x
-             * HipsInverted=y
-             * KneesInverted=y
-             * FeetInverted=y
-             * ThighLength=2.5
-             * CalfLength=2.5
-             * StepLengthMultiplier=1
-             * 
-             * */
 
             #region # - Properties
 
             public static readonly LegConfiguration DEFAULT = Create();
-
-            public int Id;
 
             private static MyIni ini;
 
@@ -73,13 +54,25 @@ namespace IngameScript
 
             #region # - Methods
 
-            public override bool Equals(object obj)
+            public override int GetJointType()
             {
-                LegConfiguration a = (LegConfiguration)obj;
-                return LegType == a.LegType && HipOffsets == a.HipOffsets && KneeOffsets == a.KneeOffsets && FootOffsets == a.FootOffsets && ThighLength == a.ThighLength && CalfLength == a.CalfLength && StepLength == a.StepHeight && StepHeight == a.StepHeight && AnimationSpeed == a.AnimationSpeed && CrouchSpeed == a.CrouchSpeed;
+                return LegType;
             }
 
-            public string ToCustomDataString()
+            public override bool Equals(object obj)
+            {
+                Log($"Comparing LegConfiguration {this} with {obj}");
+                LegConfiguration a = (LegConfiguration)obj;
+                Log($"Comparison: {this.LegType} == {a.LegType} && {this.HipOffsets} == {a.HipOffsets} && {this.KneeOffsets} == {a.KneeOffsets} && {this.FootOffsets} == {a.FootOffsets} && {this.ThighLength} == {a.ThighLength} &&{this.CalfLength} == {a.CalfLength} && {this.StepLength} == {a.StepLength} &&{this.StepHeight} == {a.StepHeight} && {this.AnimationSpeed} == {a.AnimationSpeed} && {this.CrouchSpeed} == {a.CrouchSpeed}");
+                return LegType == a.LegType && HipOffsets == a.HipOffsets && KneeOffsets == a.KneeOffsets && FootOffsets == a.FootOffsets && ThighLength == a.ThighLength && CalfLength == a.CalfLength && StepLength == a.StepLength && StepHeight == a.StepHeight && AnimationSpeed == a.AnimationSpeed && CrouchSpeed == a.CrouchSpeed;
+            }
+
+            public override int GetHashCode()
+            {
+                return base.GetHashCode();
+            }
+
+            public override string ToCustomDataString()
             {
                 /**
                  * 
@@ -101,7 +94,7 @@ CalfLength=2.5
 
                 ini.Clear();
                 ini.Set("Leg", "LegType", LegType);
-                ini.SetComment("Leg", "LegType", "1 = Chicken walker\n2 = Humanoid\n3 = Spideroid\n4 = Crab\n5 = Digitigrade");
+                ini.SetComment("Leg", "LegType", "1 = Humanoid\n2 = Chicken walker\n3 = Spideroid\n4 = Crab\n5 = Digitigrade");
 
                 ini.Set("Leg", "HipOffsets", HipOffsets);
                 ini.SetComment("Leg", "HipOffsets", "The joints' offsets (in degrees)");

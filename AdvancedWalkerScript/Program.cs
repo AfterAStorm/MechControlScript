@@ -41,6 +41,7 @@ namespace IngameScript
         // - Mech
 
         static float StandingHeight = .95f; // a multiplier applied to some leg types
+        ThrusterMode ThrusterBehavior = ThrusterMode.Override; // valid: Override, Hover
 
         // - Walking
 
@@ -102,7 +103,7 @@ namespace IngameScript
 
         // Diagnostics //
 
-        static bool debugMode = false;
+        static bool debugMode = true;//false;
 
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
@@ -114,6 +115,12 @@ namespace IngameScript
         float forcedStep = 0;
 
         // Variables //
+
+        enum ThrusterMode
+        {
+            Override = 0,
+            Hover = 1,
+        }
 
         ScriptState state;
 
@@ -142,6 +149,8 @@ namespace IngameScript
         public static bool jumping = false;
         double jumpCooldown = 0;
 
+        public static double targetArmPitch = 0;
+        public static double targetArmYaw = 0;
         public static double armPitch = 0;
         public static double armYaw = 0;
 
@@ -264,13 +273,22 @@ namespace IngameScript
                 }
 
             // Get thrusters
-            foreach (IMyThrust block in BlockFinder.GetBlocksOfType<IMyThrust>())
-                thrusters.Add(block); // before you cry, BlockFinder.GetBlocksOfType checks IsSameConstructAs
+            thrusters.Clear(); // before you cry, BlockFinder.GetBlocksOfType checks IsSameConstructAs
+            thrusters.AddRange(BlockFinder.GetBlocksOfType<IMyThrust>()
+                .Select(BlockFetcher.ParseBlock)
+                .Where(f => f.HasValue)
+                .Select(f => f.Value)
+                .Where(f => f.Type == BlockType.Thruster)
+                .Select(f => f.Block as IMyThrust));
 
             // Get the leg groups and the blocks associated with them
             // Get the arm groups and the blocks associated with them
-            BlockFetcher.FetchLegs();
-            BlockFetcher.FetchArms();
+            var configs = legs.Select((kv) => new KeyValuePair<int, JointConfiguration>(kv.Key, kv.Value.Configuration)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            BlockFetcher.FetchGroups(ref legs, configs, BlockFetcher.IsForLeg, BlockFetcher.CreateLegFromType, LegConfiguration.Parse, BlockFetcher.AddToLeg);
+            configs = arms.Select((kv) => new KeyValuePair<int, JointConfiguration>(kv.Key, kv.Value.Configuration)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            BlockFetcher.FetchGroups(ref arms, configs, BlockFetcher.IsForArm, BlockFetcher.CreateArmFromType, ArmConfiguration.Parse, BlockFetcher.AddToArm);
+            //BlockFetcher.FetchLegs();
+            //BlockFetcher.FetchArms();
 
             // Fix jump after reload
             if (crouchOverride || crouched)
@@ -420,6 +438,9 @@ namespace IngameScript
                         else
                             movementOverride = Vector3.Forward;
                         break;
+                    case "march":
+                        int direction = arguments.Length > 1 ? 1 : -1;
+                        break;
                     case "halt": // Halt mech movement override
                         movementOverride = Vector3.Zero;
                         force = false;
@@ -457,7 +478,14 @@ namespace IngameScript
                         else
                             thrustersEnabled = !thrustersEnabled;
                         break;
-
+                    case "hover":
+                        if (arguments.Length > 1)
+                            ThrusterBehavior = !arguments[1].Equals("toggle")
+                                ? (arguments[1].Equals("on") ? ThrusterMode.Hover : ThrusterMode.Override)
+                                : ((ThrusterMode)(((int)ThrusterBehavior + 1) % 2));
+                        else
+                            ThrusterBehavior = (ThrusterMode)(((int)ThrusterBehavior + 1) % 2);
+                        break;
                     // set methods //
                     case "speed":
                         WalkCycleSpeed += ParseFloatArgument(WalkCycleSpeed, arguments[1]);
@@ -491,16 +519,22 @@ namespace IngameScript
                         break;
 
                     case "autohalt":
-                        AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
+                        if (arguments.Length > 1)
+                            AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
+                        else
+                            AutoHalt = !AutoHalt;
                         break;
 
                     case "twist":
                         targetTorsoTwistAngle = arguments.Length > 1 ? TryParseFloat(arguments[1]) : 0;
+                        targetTorsoTwistAngle = targetTorsoTwistAngle.Modulo(360);
                         break;
 
                     case "arm":
                         armPitch = 0;
                         armYaw = 0;
+                        foreach (var arm in arms.Values)
+                            arm.ToZero();
                         //armRoll = 0;
                         break;
                 }
@@ -517,7 +551,7 @@ namespace IngameScript
 
             if (setupMode)
             {
-                if (GetUnixTime() - lastSetupModeTick > .5d)
+                if (GetUnixTime() - lastSetupModeTick > .1d)
                 {
                     lastSetupModeTick = GetUnixTime();
                     Save();
@@ -573,10 +607,12 @@ namespace IngameScript
             Log($"elevationStators: {elevationStators.Count}");
             Log($"rollStators: {rollStators.Count}");
 
+            Log($"thrusters: {thrusters.Count} : {ThrusterBehavior}");
+
             foreach (IMyThrust thruster in thrusters)
             {
-                thruster.ThrustOverridePercentage = moveInput.Y > 0 ? 1 : 0;
-                thruster.Enabled = thrustersEnabled && moveInput.Y > 0;
+                thruster.ThrustOverridePercentage = (moveInput.Y > 0 && ThrusterBehavior == ThrusterMode.Override) ? 1 : 0;
+                thruster.Enabled = thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
             }
 
             bool turning = turnValue != 0;

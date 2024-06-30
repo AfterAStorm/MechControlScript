@@ -22,6 +22,14 @@ namespace IngameScript
 {
     partial class Program
     {
+        public abstract class JointConfiguration
+        {
+            public abstract string ToCustomDataString();
+            public abstract int GetJointType();
+            public int Id;
+            //public abstract JointConfiguration Parse(MyIni ini);
+        }
+
 
         public class Joint
         {

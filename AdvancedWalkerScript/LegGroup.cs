@@ -22,6 +22,12 @@ namespace IngameScript
 {
     partial class Program
     {
+        public abstract class JointGroup
+        {
+            public JointConfiguration Configuration;
+            public abstract void SetConfiguration(object config);
+        }
+
         public struct LegAngles
         {
             public double HipDegrees;
@@ -54,12 +60,12 @@ namespace IngameScript
             public static LegAngles operator *(LegAngles left, LegAngles right) => new LegAngles(left.HipDegrees * right.HipDegrees, left.KneeDegrees * right.KneeDegrees, left.FeetDegrees * right.FeetDegrees, left.QuadDegrees * right.QuadDegrees);
         }
 
-        public class LegGroup
+        public class LegGroup : JointGroup
         {
 
             #region # - Properties
 
-            public LegConfiguration Configuration;
+            public new LegConfiguration Configuration;
 
             public List<LegJoint> LeftHipStators = new List<LegJoint>();
             public List<LegJoint> RightHipStators = new List<LegJoint>();
@@ -105,15 +111,20 @@ namespace IngameScript
 
             #region # - Methods
 
+            public override void SetConfiguration(object config)
+            {
+                Configuration = (LegConfiguration)config;
+            }
+
             protected virtual void SetAnglesOf(List<LegJoint> leftStators, List<LegJoint> rightStators, double leftAngle, double rightAngle, double offset)
             {
                 // We could split this into ANOTHER method, but i don't believe it's worth it
                 foreach (var motor in leftStators)
-                    motor.SetAngle(leftAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset));
+                    motor.SetAngle(leftAngle * motor.Configuration.InversedMultiplier + (offset + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
                     //SetJointAngle(motor, leftAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((leftAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
                 foreach (var motor in rightStators)
-                    motor.SetAngle(rightAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset));
+                    motor.SetAngle(rightAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
                     //SetJointAngle(motor, -rightAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
             }

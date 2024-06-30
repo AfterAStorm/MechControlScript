@@ -32,7 +32,7 @@ namespace IngameScript
         public enum BlockType
         {
             // Leg
-            Hip,
+            Hip = 5,
             Knee,
             Foot,
             Quad,
@@ -50,6 +50,8 @@ namespace IngameScript
             GyroscopeElevation, // rotor or gyroscope, pitch
             GyroscopeRoll, // rotor or gyroscope, roll
             GyroscopeStabilization,
+
+            Thruster,
 
             Camera
         }
@@ -94,15 +96,15 @@ namespace IngameScript
         {
             static int parsedId;
 
-            private static LegGroup CreateLegFromType(int type)
+            public static LegGroup CreateLegFromType(int type)
             {
                 switch (type)
                 {
                     case 0:
                     case 1:
-                        return new ChickenWalkerLegGroup();
-                    case 2:
                         return new HumanoidLegGroup();
+                    case 2:
+                        return new ChickenWalkerLegGroup();
                     case 3:
                         return new SpideroidLegGroup();
                     case 4:
@@ -113,12 +115,12 @@ namespace IngameScript
                         return new TestLegGroup();
                     default:
                         StaticWarn("Leg Type Not Supported!", $"Leg type {type} is not supported!");
-                        return new ChickenWalkerLegGroup();
+                        return new HumanoidLegGroup();
                         //throw new Exception($"Leg type {type} not implemented!");
                 }
             }
 
-            private static ArmGroup CreateArmFromType(int type)
+            public static ArmGroup CreateArmFromType(int type)
             {
                 return new ArmGroup();
             }
@@ -135,7 +137,8 @@ namespace IngameScript
                 BlockType.GyroscopeAzimuth,
                 BlockType.GyroscopeElevation,
                 BlockType.GyroscopeRoll,
-                BlockType.GyroscopeStabilization
+                BlockType.GyroscopeStabilization,
+                BlockType.Thruster
             };
 
             public static FetchedBlock? ParseBlock(IMyTerminalBlock block)
@@ -233,6 +236,11 @@ namespace IngameScript
                                 break; // Liars!
                             blockType = BlockType.LandingGear;
                             break;
+                        case "th":
+                            if (!(block is IMyThrust))
+                                break;
+                            blockType = BlockType.Thruster;
+                            break;
                         case "c":
                             blockType = BlockType.Camera;
                             break;
@@ -289,7 +297,22 @@ namespace IngameScript
                 return null;
             }
 
-            static bool IsForArm(FetchedBlock block)
+            public static bool IsForLeg(FetchedBlock block)
+            {
+                switch (block.Type)
+                {
+                    case BlockType.Hip:
+                    case BlockType.Knee:
+                    case BlockType.Foot:
+                    case BlockType.Quad:
+                    case BlockType.LandingGear:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            public static bool IsForArm(FetchedBlock block)
             {
                 switch (block.Type)
                 {
@@ -301,9 +324,95 @@ namespace IngameScript
                 }
             }
 
-            private static void AddToLeg(FetchedBlock block, LegGroup leg) // adds a fetched block to the leg
+            public static void FetchGroups<T, T2>(ref Dictionary<int, T> groups, Dictionary<int, T2> previousConfigs, Func<FetchedBlock, bool> valid, Func<int, T> create, Func<MyIni, T2> parseConfig, Action<FetchedBlock, T> add) where T : JointGroup where T2 : JointConfiguration
             {
-                Log($"Block {block.Block.CustomName} as {block.Type}");
+                groups.Clear();
+                List<FetchedBlock> blocks = BlockFinder.GetBlocksOfType<IMyTerminalBlock>() // get everything
+                    .Select(ParseBlock) // turn them into FetchedBlock?
+                    .Where(v => v.HasValue) // check if they were valid
+                    .Select(v => v.Value) // turn them into FetchedBlock
+                    .Where(valid) // check if they are "valid" for this group type
+                    .ToList();
+
+                // we have a list of blocks
+                // we have a list of the previous configurations
+                // we loop through all current blocks and check for a different config than previous
+                // if we find one, we create a leg and start adding blocks to it
+                // :later: we loop through blocks that had the same config, and check for the leg+add and/or create the leg anyway
+                // :later2: we loop through blocks that didn't have a valid config, and leg+add or create the leg anyway
+
+                List<FetchedBlock> reiterate = new List<FetchedBlock>();
+                List<FetchedBlock> reiterateLater = new List<FetchedBlock>();
+
+                List<string> sections = new List<string>();
+                // we know each "block" is valid for this group type
+                foreach (var block in blocks)
+                {
+                    if (groups.ContainsKey(block.Group)) // the leg was already created! go ahead and add it
+                    {
+                        add(block, groups[block.Group]);
+                        continue;
+                    }
+
+                    if (block.Ini == null) // the block doesn't have a valid configuration, so we can worry about it last
+                    {
+                        Log($"Ini is null {block.Block}");
+                        reiterateLater.Add(block);
+                        continue;
+                    }
+                    sections.Clear();
+                    block.Ini.GetSections(sections);
+                    if (sections.Count <= 0) // the block doesn't have a valid configuration, so we can worry about it last
+                    {
+                        Log($"Ini has no sections {block.Block}");
+                        reiterateLater.Add(block);
+                        continue;
+                    }
+
+                    // check configs
+                    JointConfiguration previousConfiguration = previousConfigs.GetValueOrDefault(block.Group, default(T2));
+                    JointConfiguration currentConfiguration = parseConfig(block.Ini);
+                    if (previousConfiguration == null || previousConfiguration.Equals(currentConfiguration)) // the configs are the same, so check later
+                    {
+                        Log($"Configuration isn't different! {block.Block} {previousConfiguration} {currentConfiguration}");
+                        reiterate.Add(block);
+                        continue;
+                    }
+
+                    Log($"New configuration! {block.Block}");
+                    // create leg
+                    Log($"Creating new leg {block.Block}");
+                    currentConfiguration.Id = block.Group;
+                    var leg = create(currentConfiguration.GetJointType());
+                    leg.SetConfiguration(currentConfiguration);
+                    add(block, leg);
+                    groups.Add(block.Group, leg);
+                }
+
+                foreach (var block in reiterate.Concat(reiterateLater))
+                {
+                    if (groups.ContainsKey(block.Group)) // the leg was already created! go ahead and add it
+                    {
+                        Log($"(reiter) Leg already exists {block.Block}");
+                        add(block, groups[block.Group]);
+                        continue;
+                    }
+
+                    // create leg
+                    JointConfiguration currentConfiguration = parseConfig(block.Ini);
+                    currentConfiguration.Id = block.Group;
+                    Log($"(reiter) Creating new leg {block.Block}");
+
+                    var leg = create(currentConfiguration.GetJointType());
+                    leg.SetConfiguration(currentConfiguration);
+                    add(block, leg);
+                    groups.Add(block.Group, leg);
+                }
+            }
+
+            public static void AddToLeg(FetchedBlock block, LegGroup leg) // adds a fetched block to the leg
+            {
+                Log($"AddToLeg Block {block.Block.CustomName} as {block.Type}");
                 switch (block.Type)
                 {
                     case BlockType.Hip:
@@ -435,10 +544,10 @@ namespace IngameScript
                 legs = newLegs;
             }
 
-            private static void AddToArm(FetchedBlock block, ArmGroup arm)
+            public static void AddToArm(FetchedBlock block, ArmGroup arm)
             {
                 ArmJointConfiguration jointConfig = ArmJointConfiguration.Parse(block);
-                Log($"block: {block.Block.CustomData}");
+                Log($"AddToArm block: {block.Block.CustomData}");
                 Log($"offset: {jointConfig.Offset}");
 
                 switch (block.Type)

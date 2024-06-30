@@ -22,12 +22,12 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class ArmGroup
+        public class ArmGroup : JointGroup
         {
 
             #region # - Properties
 
-            public ArmConfiguration Configuration;
+            public new ArmConfiguration Configuration;
 
             public List<ArmJoint> PitchJoints = new List<ArmJoint>();
             public List<ArmJoint> YawJoints = new List<ArmJoint>();
@@ -35,6 +35,7 @@ namespace IngameScript
 
             public List<IMyLandingGear> Magnets = new List<IMyLandingGear>();
 
+            public bool IsZeroing = false;
             public double Pitch => armPitch;
             public double Yaw => armYaw;
             //public double Roll => armRoll;
@@ -43,17 +44,49 @@ namespace IngameScript
 
             #region # - Methods
 
+            public override void SetConfiguration(object config)
+            {
+                Configuration = (ArmConfiguration)config;
+            }
+
+            public void ToZero()
+            {
+                IsZeroing = true;
+            }
+
             public void Update()
             {
+                if (Pitch.Absolute() > 0.5 || Yaw.Absolute() > 0.5)
+                    IsZeroing = false;
                 foreach (var joint in PitchJoints)
                 {
-                    joint.Stator.TargetVelocityRPM = (float)(Pitch * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    if (IsZeroing)
+                        joint.SetAngle(joint.Configuration.Offset);
+                    else
+                        joint.Stator.TargetVelocityRPM = (float)(Pitch * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
                     //joint.SetAngle((Pitch + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
                 }
                 foreach (var joint in YawJoints)
                 {
-                    joint.Stator.TargetVelocityRPM = (float)(Yaw * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                    if (IsZeroing)
+                        joint.SetAngle(joint.Configuration.Offset);
+                    else
+                        joint.Stator.TargetVelocityRPM = (float)(Yaw * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
                     //joint.SetAngle((Yaw + joint.Configuration.Offset) * joint.Configuration.InversedMultiplier * joint.Configuration.Multiplier);
+                }
+                if (IsZeroing)
+                {
+                    bool done = true;
+                    foreach (var joint in PitchJoints.Concat(YawJoints))
+                    {
+                        if ((joint.Stator.Angle - joint.Configuration.Offset).Absolute() > .1)
+                        {
+                            done = false;
+                            break;
+                        }
+                    }
+                    if (done)
+                        IsZeroing = false;
                 }
                 /*foreach (var joint in RollJoints)
                 {

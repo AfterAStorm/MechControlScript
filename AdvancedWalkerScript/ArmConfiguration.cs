@@ -26,7 +26,7 @@ namespace IngameScript
         /// Holds configuration information
         /// Each configuration has a numerical id starting at one (default)
         /// </summary>
-        public struct ArmConfiguration
+        public class ArmConfiguration : JointConfiguration
         {
             /*
              * 
@@ -43,8 +43,6 @@ namespace IngameScript
 
             public static readonly ArmConfiguration DEFAULT = Create();
 
-            public int Id;
-
             private static MyIni ini;
 
             private int defaultValue;
@@ -54,7 +52,12 @@ namespace IngameScript
 
             #region # - Methods
 
-            public string ToCustomDataString()
+            public override int GetJointType()
+            {
+                return 1;
+            }
+
+            public override string ToCustomDataString()
             {
                 ini.Clear();
                 ini.Set("Arm", "na", false);
