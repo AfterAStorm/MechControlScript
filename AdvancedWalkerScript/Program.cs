@@ -612,7 +612,7 @@ namespace IngameScript
             foreach (IMyThrust thruster in thrusters)
             {
                 thruster.ThrustOverridePercentage = (moveInput.Y > 0 && ThrusterBehavior == ThrusterMode.Override) ? 1 : 0;
-                thruster.Enabled = thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
+                // users decide //thruster.Enabled = thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
             }
 
             bool turning = turnValue != 0;
