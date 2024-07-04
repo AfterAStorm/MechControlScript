@@ -24,7 +24,8 @@ namespace IngameScript
     {
         public abstract class JointGroup
         {
-            public JointConfiguration Configuration;
+            public JointConfiguration Configuration = null;
+
             public abstract void SetConfiguration(object config);
         }
 

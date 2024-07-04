@@ -36,7 +36,7 @@ namespace IngameScript
             private static MyIni ini;
 
             public int LegType;
-            public bool HipsInverted, KneesInverted, FeetInverted, QuadInverted;
+            public bool HipsInverted = false, KneesInverted = false, FeetInverted = false, QuadInverted = false; // we define = false because they aren't set anymore (deprecated) TODO: REMOVE
             public double HipOffsets, KneeOffsets, FootOffsets, QuadOffsets;
 
             public double ThighLength, CalfLength;
