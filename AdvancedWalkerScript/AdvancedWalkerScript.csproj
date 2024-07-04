@@ -42,6 +42,7 @@
     <Compile Include="ArmConfiguration.cs" />
     <Compile Include="ArmGroup.cs" />
     <Compile Include="BlockFetcher.cs" />
+    <Compile Include="Features\Commands.cs" />
     <Compile Include="Features\ScriptState.cs" />
     <Compile Include="Features\TorsoTwist.cs" />
     <Compile Include="Features\Stabilization.cs" />

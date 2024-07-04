@@ -384,7 +384,7 @@ namespace IngameScript
 
             // Detailed Info - alpha red green blue
             Echo("[Color=#13ebca00]Advanced Walker Script[/Color]");
-            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")}");
+            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")} | {arms.Count} arm{(arms.Count != 1 ? "s" : "")}");
             Echo($"");
             Echo($"Last       Tick: {lastRuntime:f3}ms");
             Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:f3}ms over {averageRuntimes.Length} samples");
@@ -412,138 +412,9 @@ namespace IngameScript
             if (legs.Count <= 0) // how bruh gonna *walk* without legza?
                 Warn("No Legs Found!", "Failed to find any leg groups!\nNeed help setting up? Check the documentation at github.com/AfterAStorm/AdvancedWalkerScript/wiki");
 
-            // Handle arguments
+            // Handle arguments / commands
             if (!string.IsNullOrEmpty(argument))
-            {
-                string[] arguments = argument.ToLower().Split(' ');
-                switch (arguments[0].Trim()) // Clean up argument, allow inputs
-                {
-                    default:
-                    case "reload": // Reloads the script's blocks and configuration
-                        Save();
-                        Load();
-                        GetBlocks();
-                        force = false;
-                        break;
-                    case "crouch": // Toggle crouch (overrides the cockpit [c]), argument for "on" or "true" and "off" or "false", off and false aren't checked but infered
-                        if (arguments.Length > 1)
-                            crouchOverride = arguments[1].Equals("on") || arguments[1].Equals("true");
-                        else
-                            crouchOverride = !crouchOverride; // crouchOverride is for this specifically, because the normal crouched variable is set based on
-                        // the MoveIndicator (then gets set to this value if true)
-                        break;
-                    case "walk": // b or backwards to go backwards, forward is infered and default
-                        if (arguments.Length > 1)
-                            movementOverride = arguments[1].Equals("toggle") ? (movementOverride == Vector3.Forward ? Vector3.Zero : Vector3.Forward) : arguments[1].Equals("back") ? Vector3.Backward : Vector3.Forward;
-                        else
-                            movementOverride = Vector3.Forward;
-                        break;
-                    case "march":
-                        int direction = arguments.Length > 1 ? 1 : -1;
-                        break;
-                    case "halt": // Halt mech movement override
-                        movementOverride = Vector3.Zero;
-                        force = false;
-                        break;
-                    case "step":
-                        force = false;
-                        if (arguments.Length > 1)
-                        {
-                            force = true;
-                            forcedStep += float.Parse(arguments[1]);//ParseFloatArgument(forcedStep, arguments[1]);
-                            forcedStep %= 4;
-                        }
-                        break;
-
-                    case "turn":
-                        if (arguments.Length > 1)
-                            turnOverride = MathHelper.Clamp(turnOverride + ParseFloatArgument(turnOverride, arguments[1]), -1, 1);
-                        else
-                            turnOverride = 0;
-                        break;
-
-                    case "setup":
-                        setupMode = !setupMode;
-                        lastSetupModeTick = GetUnixTime();
-                        break;
-
-                    case "debug":
-                        debugMode = !debugMode;
-                        break;
-
-                    // thrusters //
-                    case "thrusters":
-                        if (arguments.Length > 1)
-                            thrustersEnabled = arguments[1].Equals("on");
-                        else
-                            thrustersEnabled = !thrustersEnabled;
-                        break;
-                    case "hover":
-                        if (arguments.Length > 1)
-                            ThrusterBehavior = !arguments[1].Equals("toggle")
-                                ? (arguments[1].Equals("on") ? ThrusterMode.Hover : ThrusterMode.Override)
-                                : ((ThrusterMode)(((int)ThrusterBehavior + 1) % 2));
-                        else
-                            ThrusterBehavior = (ThrusterMode)(((int)ThrusterBehavior + 1) % 2);
-                        break;
-                    // set methods //
-                    case "speed":
-                        WalkCycleSpeed += ParseFloatArgument(WalkCycleSpeed, arguments[1]);
-                        break;
-
-                    case "lean":
-                        StandingLean += ParseFloatArgument((float)StandingLean, arguments[1]);
-                        AccelerationLean = StandingLean;
-                        break;
-
-                    case "standinglean":
-                    case "standlean":
-                        StandingLean += ParseFloatArgument((float)StandingLean, arguments[1]);
-                        break;
-
-                    case "accelerationlean":
-                    case "accellean":
-                        AccelerationLean += ParseFloatArgument((float)AccelerationLean, arguments[1]);
-                        break;
-
-                    case "steplength":
-                        double stepLength = (double)TryParseFloat(arguments[1]);
-                        foreach (LegGroup g in legs.Values)
-                            g.Configuration.StepLength = stepLength;
-                        break;
-
-                    case "stepheight":
-                        double stepHeight = (double)TryParseFloat(arguments[1]);
-                        foreach (LegGroup g in legs.Values)
-                            g.Configuration.StepHeight = stepHeight;
-                        break;
-
-                    case "autohalt":
-                        if (arguments.Length > 1)
-                            AutoHalt = argument[1].Equals("on") || argument[1].Equals("true");
-                        else
-                            AutoHalt = !AutoHalt;
-                        break;
-
-                    case "twist":
-                        targetTorsoTwistAngle = arguments.Length > 1 ? TryParseFloat(arguments[1]) : 0;
-                        targetTorsoTwistAngle = targetTorsoTwistAngle.Modulo(360);
-                        break;
-
-                    case "arm":
-                        armPitch = 0;
-                        armYaw = 0;
-                        foreach (var arm in arms.Values)
-                            arm.ToZero();
-                        //armRoll = 0;
-                        break;
-                }
-                if (!updateSource.HasFlag(UpdateType.Update1))
-                {
-                    deltaOffset += Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d;
-                    return;
-                }
-            }
+                HandleCommands(argument, updateSource);
 
             // Only update during specified update times!
             if (!updateSource.HasFlag(UpdateType.Update1))
