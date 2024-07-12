@@ -29,9 +29,7 @@ namespace IngameScript
             {
                 default:
                 case "reload": // Reloads the script's blocks and configuration
-                    Save();
-                    Load();
-                    GetBlocks();
+                    Reload();
                     force = false;
                     break;
                 case "crouch": // Toggle crouch (overrides the cockpit [c]), argument for "on" or "true" and "off" or "false", off and false aren't checked but infered
@@ -68,9 +66,31 @@ namespace IngameScript
                         turnOverride = 0;
                     break;
 
+                case "limp":
+                    limp = !limp;
+                    foreach (var group in legs)
+                        group.Value.AllBlocks.ForEach(b => { if (b is IMyFunctionalBlock) (b as IMyFunctionalBlock).Enabled = !limp; });
+                    break;
+
+                // setup //
                 case "setup":
                     setupMode = !setupMode;
                     lastSetupModeTick = GetUnixTime();
+                    break;
+
+                case "autotag":
+                    TryAutoTag();
+                    break;
+                case "autorename":
+                    if (arguments.Length < 2)
+                        AutoRenameBlocks("{tag}");
+                    else
+                        AutoRenameBlocks(string.Join(" ", argument.Split(' ').Skip(1))); // we have to split again b/c the arguments array is all lowercased
+                    break;
+                case "autotype":
+                    if (arguments.Length < 2)
+                        break;
+                    AutoRetype((int)TryParseFloat(arguments[1]));
                     break;
 
                 case "debug":

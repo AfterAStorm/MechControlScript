@@ -80,6 +80,7 @@ namespace IngameScript
 
         // -- Diagnostics -- \\
 
+        bool ShowStats = false;
         string DebugLCD = "debug";
         const int AverageRuntimeSampleSize = 15;
 
@@ -94,6 +95,7 @@ namespace IngameScript
         // OPTIONs
 
         public static Program Singleton { get; private set; }
+        public const string Version = "1.0-dev";
 
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
@@ -103,7 +105,7 @@ namespace IngameScript
 
         // Diagnostics //
 
-        static bool debugMode = true;//false;
+        static bool debugMode = false;
 
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
@@ -116,11 +118,13 @@ namespace IngameScript
 
         // Variables //
 
+        #region mdk preserve
         enum ThrusterMode
         {
             Override = 0,
             Hover = 1,
         }
+        #endregion // we need to preseve b/c if on full mode, it will turn it into a single unicode character D:
 
         ScriptState state;
 
@@ -148,6 +152,7 @@ namespace IngameScript
         static bool crouchOverride = false; // argument crouch
         public static bool jumping = false;
         double jumpCooldown = 0;
+        bool limp = false;
 
         public static double targetArmPitch = 0;
         public static double targetArmYaw = 0;
@@ -165,6 +170,117 @@ namespace IngameScript
         double targetTorsoTwistAngle = -1;
 
         double lastSetupModeTick = 0;
+
+        int statusTick = 0;
+        string[] statuses = new string[]
+        {
+            ">>>>>>",
+            "->>>>>",
+            "-->>>>",
+            "--->>>",
+            "---->>",
+            "----->",
+            "------",
+            "-----<",
+            "----<<",
+            "---<<<",
+            "--<<<<",
+            "-<<<<<",
+            "<<<<<<",
+            "<<<<<-",
+            "<<<<--",
+            "<<<---",
+            "<<----",
+            "<-----",
+            "------",
+            ">-----",
+            ">>----",
+            ">>>---",
+            ">>>>--",
+            ">>>>>-",
+            ">>>>>>",
+            "->>>>>",
+            "-->>>>",
+            "--->>>",
+            "---->>",
+            "----->",
+            "------",
+            "-----<",
+            "----<<",
+            "---<<<",
+            "--<<<<",
+            "-<<<<<",
+            "<<<<<<",
+            "<<<<<-",
+            "<<<<--",
+            "<<<---",
+            "<<----",
+            "<-----",
+            "------",
+            ">-----",
+            ">>----",
+            ">>>---",
+            ">>>>--",
+            ">>>>>-",
+            ">>>>>>",
+            "           |",
+            "        < ",
+            "      < " ,
+            "    < " , 
+            "  < " ,   
+            "| " ,     
+            "  > " ,   
+            "    > " , 
+            "      > " ,
+            "        > ",
+            "           |",
+            "        < ",
+            "      < " ,
+            "    < " , 
+            "  < " ,   
+            "| " ,     
+            "  > " ,   
+            "    > " , 
+            "      > " ,
+            "        > ",
+            "           |",
+            "        < ",
+            "      < " ,
+            "    < " , 
+            "  < " ,   
+            "| " ,     
+            "  > " ,   
+            "    > " , 
+            "      > " ,
+            "        > ",
+            "           |",
+            "        < ",
+            "      < " ,
+            "    < " , 
+            "  < " ,   
+            "| " ,     
+            "  > " ,   
+            "    > " , 
+            "      > " ,
+            "        > ",
+            "           |",
+            "        < ",
+            "      < " ,
+            "    < " , 
+            "  < " ,   
+            "| " ,     
+            "  > " ,   
+            "    > " , 
+            "      > " ,
+            "        > ",
+            "           |",
+            /*"⠾",
+            "⠷",
+            "⠯",
+            "⠟",
+            "⠻",
+            "⠽",*/
+        };
 
         static double GetUnixTime()
         {
@@ -326,6 +442,13 @@ namespace IngameScript
             Storage = state.Serialize();
         }
 
+        public void Reload()
+        {
+            Save();
+            Load();
+            GetBlocks();
+        }
+
         struct Warning
         {
             public string Title;
@@ -383,16 +506,19 @@ namespace IngameScript
             maxInstructions = Math.Max(maxInstructions, lastInstructions);
 
             // Detailed Info - alpha red green blue
-            Echo("[Color=#13ebca00]Advanced Walker Script[/Color]");
-            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")} | {arms.Count} arm{(arms.Count != 1 ? "s" : "")}");
+            Echo($"[Color=#13ebca00]Advanced Walker Script[/Color] [Color=#00aaaaaa]>[/Color] [Color=#0034eb95]{Version}[/Color]");
+            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")} | {arms.Count} arm{(arms.Count != 1 ? "s" : "")}{(!ShowStats ? $" ... {statuses[statusTick]}" : "")}");
             Echo($"");
-            Echo($"Last       Tick: {lastRuntime:f3}ms");
-            Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:f3}ms over {averageRuntimes.Length} samples");
-            Echo($"Max        Tick: {maxRuntime:f3}ms");
-            Echo($"Last Instructions: {lastInstructions}");
-            Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:f1}%");
-            Echo($"Max Instructions: {maxInstructions}");
-            Echo($"Max Compexity: {maxInstructions / Runtime.MaxInstructionCount * 100:f1}%\n");
+            if (ShowStats)
+            {
+                Echo($"Last       Tick: {lastRuntime:f3}ms");
+                Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:f3}ms over {averageRuntimes.Length} samples");
+                Echo($"Max        Tick: {maxRuntime:f3}ms");
+                Echo($"Last Instructions: {lastInstructions}");
+                Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:f1}%");
+                Echo($"Max Instructions: {maxInstructions}");
+                Echo($"Max Compexity: {maxInstructions / Runtime.MaxInstructionCount * 100:f1}%\n");
+            }
 
             if (setupMode)
                 Warn("Setup Mode Active", "Any changes will be detected, beware that the script uses a lot more resources");
@@ -420,14 +546,14 @@ namespace IngameScript
             if (!updateSource.HasFlag(UpdateType.Update1))
                 return;
 
+            statusTick = (statusTick + 1) % statuses.Length;
+
             if (setupMode)
             {
                 if (GetUnixTime() - lastSetupModeTick > .1d)
                 {
                     lastSetupModeTick = GetUnixTime();
-                    Save();
-                    Load();
-                    GetBlocks();
+                    Reload();
                 }
             }
 
@@ -483,8 +609,10 @@ namespace IngameScript
             foreach (IMyThrust thruster in thrusters)
             {
                 thruster.ThrustOverridePercentage = (moveInput.Y > 0 && ThrusterBehavior == ThrusterMode.Override) ? 1 : 0;
-                // users decide //thruster.Enabled = thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
+                thruster.Enabled = ThrusterBehavior == ThrusterMode.Override ? moveInput.Y > 0 : thruster.Enabled; //thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
             }
+
+            bool thrustesrAreThrusting = thrusters.Count > 0 ? thrusters.First().CurrentThrustPercentage > 0 : false;
 
             bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
@@ -554,8 +682,8 @@ namespace IngameScript
             {
                 foreach (LegGroup leg in legs.Values)
                 {
-                    bool wasIdle = leg.Animation.IsIdle();
-                    leg.Animation = !crouched ? Animation.Walk : Animation.CrouchWalk;
+                    //bool wasIdle = leg.Animation.IsIdle();
+                    leg.Animation = !thrustesrAreThrusting ? (!crouched ? Animation.Walk : Animation.CrouchWalk) : Animation.Flight;
                     /*if (wasIdle && !stepEndedOn0)
                     {
                         Log("AAAAAAAAAAAAAAAAAAAAA\nAAAAAAAAA\nAAAAAAAAAAA");

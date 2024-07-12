@@ -32,6 +32,7 @@ namespace IngameScript
             Crouch,
             CrouchWalk,
             Strafe, // not final
+            Flight,
 
             Force,
         }

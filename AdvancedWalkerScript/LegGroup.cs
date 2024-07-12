@@ -86,6 +86,9 @@ namespace IngameScript
             public List<IMyLandingGear> LeftGears = new List<IMyLandingGear>();
             public List<IMyLandingGear> RightGears = new List<IMyLandingGear>();
 
+            public List<IMyTerminalBlock> AllBlocks =>
+                LeftHipStators.Concat(RightHipStators).Concat(LeftKneeStators).Concat(RightKneeStators).Concat(LeftFootStators).Concat(RightFootStators).Concat(LeftQuadStators).Concat(RightQuadStators).Select(j => j.Stator as IMyTerminalBlock).Concat(LeftPistons.Concat(RightPistons).Select(p => p.Block)).Concat(LeftGears.Concat(RightGears)).ToList();
+
             //public IMyCameraBlock[] InclineCameras; // TODO: use these, give them a purpose!
 
             protected double LastDelta = 1;

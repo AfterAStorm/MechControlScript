@@ -22,6 +22,65 @@ namespace IngameScript
         internal static bool IsTurn(this Program.Animation animation) => animation == Program.Animation.Turn || animation == Program.Animation.CrouchTurn;
     }
 
+    partial class Program
+    {
+        internal static string ToInitial(BlockType type)
+        {
+            switch (type)
+            {
+                case BlockType.Hip:
+                    return "H";
+                case BlockType.Knee:
+                    return "K";
+                case BlockType.Foot:
+                    return "F";
+                case BlockType.Quad:
+                    return "Q";
+            }
+            throw new Exception("Invalid block type");
+        }
+
+        internal static string ToName(BlockType type)
+        {
+            switch (type)
+            {
+                case BlockType.Hip:
+                    return "Hip";
+                case BlockType.Knee:
+                    return "Knee";
+                case BlockType.Foot:
+                    return "Foot";
+                case BlockType.Quad:
+                    return "Quad";
+            }
+            throw new Exception("Invalid block type");
+        }
+
+        internal static string ToInitial(BlockSide side)
+        {
+            switch (side)
+            {
+                case BlockSide.Left:
+                    return "L";
+                case BlockSide.Right:
+                    return "R";
+            }
+            throw new Exception("Invalid block side");
+        }
+
+        internal static string ToName(BlockSide side)
+        {
+            switch (side)
+            {
+                case BlockSide.Left:
+                    return "Left";
+                case BlockSide.Right:
+                    return "Right";
+            }
+            throw new Exception("Invalid block side");
+        }
+    }
+
     public static class AngleConversions
     {
         /// <summary>

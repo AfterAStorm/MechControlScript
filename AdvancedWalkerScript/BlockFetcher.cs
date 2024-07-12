@@ -32,7 +32,7 @@ namespace IngameScript
         public enum BlockType
         {
             // Leg
-            Hip = 5,
+            Hip,
             Knee,
             Foot,
             Quad,
@@ -295,6 +295,20 @@ namespace IngameScript
                     };
                 }
                 return null;
+            }
+
+            public static bool IsLegJoint(FetchedBlock block)
+            {
+                switch (block.Type)
+                {
+                    case BlockType.Hip:
+                    case BlockType.Knee:
+                    case BlockType.Foot:
+                    case BlockType.Quad:
+                        return true;
+                    default:
+                        return false;
+                }
             }
 
             public static bool IsForLeg(FetchedBlock block)

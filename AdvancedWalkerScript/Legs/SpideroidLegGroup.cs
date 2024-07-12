@@ -78,7 +78,7 @@ namespace IngameScript
                 {
                     Log($"walk");
                     x += ((cos) * .75) + .1;
-                    y += (cos - 1) * .05 - 1;
+                    y += -.75 + (cos - 1) * .1;
                     //if (left)
                     //    y *= -1;
                 }
@@ -92,8 +92,8 @@ namespace IngameScript
                 Log($"x:{x}; y:{y}");
                 y *= -1;
 
-                double thigh = 2.5;
-                double calf = 2.5;
+                double thigh = Configuration.ThighLength;
+                double calf = Configuration.CalfLength;
 
                 LegAngles ik = InverseKinematics.CalculateLeg(thigh, calf, x, y);//InverseKinematics.CalculateLeg(Configuration.ThighLength, Configuration.CalfLength, 1, 1);
 

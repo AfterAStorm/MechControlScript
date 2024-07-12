@@ -47,6 +47,8 @@ namespace IngameScript
                 return;
             }
             Vector3D gravity = reference.GetTotalGravity();
+            if (gravity == null || reference.WorldMatrix == null)
+                return;
             Vector3D up = reference.WorldMatrix.Up;
             Vector3D forward = reference.WorldMatrix.Forward.Normalized();
             Vector3D back = reference.WorldMatrix.Backward;
