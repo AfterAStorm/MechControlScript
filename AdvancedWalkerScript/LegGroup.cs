@@ -31,6 +31,10 @@ namespace IngameScript
 
         public struct LegAngles
         {
+            public static LegAngles Zero = new LegAngles(0, 0, 0, 0);
+            public static LegAngles One = new LegAngles(1, 1, 1, 1);
+            public static LegAngles MinusOne = new LegAngles(-1, -1, -1, -1);
+
             public double HipDegrees;
             public double KneeDegrees;
             public double FeetDegrees;
@@ -93,12 +97,17 @@ namespace IngameScript
 
             protected double LastDelta = 1;
             public double AnimationStep = 0; // pff, who needes getters and setters?
-            public double AnimationStepOffset => OffsetLegs ? (AnimationStep + 2).Modulo(4) : AnimationStep;
+            public double AnimationStepOffset => OffsetLegs ? (AnimationStep + .5).Modulo(1) : AnimationStep;
             public double CrouchWaitTime = 0; // extra property for stuffs that needs it
-            public double IdOffset => Configuration.Id % 2 == 1 ? 0 : 2;
+            public double IdOffset => Configuration.Id % 2 == 1 ? 0 : .5;
             public bool OffsetLegs = true;
             public Animation Animation = Animation.Idle;
             public double AnimationWaitTime = 0;
+            public virtual double AnimationSpeedMultiplier => 1;
+
+            public double CalculatedThighLength = 0;
+            public double CalculatedCalfLength = 0;
+            public double CalculatedQuadLength = 0;
 
             protected double HipInversedMultiplier = 1;
             protected double KneeInversedMultiplier = 1;
@@ -115,6 +124,19 @@ namespace IngameScript
 
             #region # - Methods
 
+            public virtual void Initialize()
+            {
+                // Update multipliers
+                HipInversedMultiplier = Configuration.HipsInverted ? -1 : 1;
+                KneeInversedMultiplier = Configuration.KneesInverted ? -1 : 1;
+                FeetInversedMultiplier = Configuration.FeetInverted ? -1 : 1;
+                QuadInversedMultiplier = Configuration.QuadInverted ? -1 : 1;
+
+                CalculatedThighLength = Configuration.ThighLength > 0 ? Configuration.ThighLength : FindThighLength();
+                CalculatedCalfLength = Configuration.CalfLength > 0 ? Configuration.CalfLength : FindCalfLength(); // lower leg, or upper leg for spiders
+                CalculatedQuadLength = Configuration.ThighLength > 0 ? Configuration.ThighLength : FindQuadLength(); // lower lower leg, or lower leg for spiders
+            }
+
             public override void SetConfiguration(object config)
             {
                 Configuration = (LegConfiguration)config;
@@ -124,27 +146,44 @@ namespace IngameScript
             {
                 // We could split this into ANOTHER method, but i don't believe it's worth it
                 foreach (var motor in leftStators)
-                    motor.SetAngle(leftAngle * motor.Configuration.InversedMultiplier + (offset + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
+                    motor.SetAngle(leftAngle * motor.Configuration.InversedMultiplier + (-(motor.IsRotor ? offset : -offset) + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
                     //SetJointAngle(motor, leftAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((leftAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
                 foreach (var motor in rightStators)
-                    motor.SetAngle(rightAngle * motor.Configuration.InversedMultiplier - (offset + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
+                    motor.SetAngle(rightAngle * motor.Configuration.InversedMultiplier - ((motor.IsRotor ? offset : -offset) + motor.Configuration.Offset) * (motor.IsHinge ? 1 : -1));
                     //SetJointAngle(motor, -rightAngle * motor.Configuration.InversedMultiplier, offset + motor.Configuration.Offset);
                     //motor.Stator.TargetVelocityRPM = (float)MathHelper.Clamp((-rightAngle * motor.Configuration.InversedMultiplier).AbsoluteDegrees(motor.Stator.BlockDefinition.SubtypeName.Contains("Hinge")) - motor.Stator.Angle.ToDegrees() - offset - motor.Configuration.Offset, -MaxRPM, MaxRPM);
             }
 
-            protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double leftQuadDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees, double rightQuadDegrees)
+            protected virtual void SetAnglesOf(List<LegJoint> stators, double angle, double offset)
+            {
+                foreach (var motor in stators)
+                    motor.SetAngle((angle + /*(motor.IsRotor ?*/ offset /*: -offset)*/ + motor.Configuration.Offset) * motor.Configuration.InversedMultiplier);
+            }
+
+            /*protected virtual void SetAngles(double leftHipDegrees, double leftKneeDegrees, double leftFeetDegrees, double leftQuadDegrees, double rightHipDegrees, double rightKneeDegrees, double rightFeetDegrees, double rightQuadDegrees)
             {
                 // The code documents itself!
                 SetAnglesOf(LeftHipStators,     RightHipStators,    (leftHipDegrees  * HipInversedMultiplier),      (rightHipDegrees * HipInversedMultiplier),     Configuration.HipOffsets);
-                SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets);
-                SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets);
-                SetAnglesOf(LeftQuadStators,    RightQuadStators,   (leftQuadDegrees * QuadInversedMultiplier),     (rightQuadDegrees * QuadInversedMultiplier),   Configuration.QuadOffsets);
-            }
+                SetAnglesOf(LeftKneeStators,    RightKneeStators,   (leftKneeDegrees * KneeInversedMultiplier),     (rightKneeDegrees * KneeInversedMultiplier),   Configuration.KneeOffsets + Configuration.HipOffsets);
+                SetAnglesOf(LeftFootStators,    RightFootStators,   (leftFeetDegrees * FeetInversedMultiplier),     (rightFeetDegrees * FeetInversedMultiplier),   Configuration.FootOffsets + Configuration.KneeOffsets);
+                SetAnglesOf(LeftQuadStators,    RightQuadStators,   (leftQuadDegrees * QuadInversedMultiplier),     (rightQuadDegrees * QuadInversedMultiplier),   Configuration.QuadOffsets + Configuration.FootOffsets);
+            }*/
 
             protected virtual void SetAngles(LegAngles leftAngles, LegAngles rightAngles)
             {
-                SetAngles(
+                SetAnglesOf(LeftHipStators, leftAngles.HipDegrees, Configuration.HipOffsets); // +hip goes the right way
+                SetAnglesOf(RightHipStators, rightAngles.HipDegrees, -Configuration.HipOffsets);
+
+                SetAnglesOf(LeftKneeStators, leftAngles.KneeDegrees, -Configuration.KneeOffsets); //Configuration.HipOffsets + Configuration.KneeOffsets); // why is this different from hip
+                SetAnglesOf(RightKneeStators, rightAngles.KneeDegrees, -Configuration.KneeOffsets);//-Configuration.HipOffsets + Configuration.KneeOffsets);
+
+                SetAnglesOf(LeftFootStators, leftAngles.FeetDegrees, -Configuration.FootOffsets);// + Configuration.KneeOffsets); // what?
+                SetAnglesOf(RightFootStators, rightAngles.FeetDegrees, -Configuration.FootOffsets);// + Configuration.KneeOffsets);
+
+                SetAnglesOf(LeftQuadStators, leftAngles.QuadDegrees, -Configuration.QuadOffsets);
+                SetAnglesOf(RightQuadStators, rightAngles.QuadDegrees, -Configuration.QuadOffsets);
+                /*SetAngles(
                     leftAngles.HipDegrees,
                     leftAngles.KneeDegrees,
                     leftAngles.FeetDegrees,
@@ -153,7 +192,7 @@ namespace IngameScript
                     rightAngles.KneeDegrees,
                     rightAngles.FeetDegrees,
                     rightAngles.QuadDegrees
-                );
+                );*/
             }
 
             protected double FindThighLength()
@@ -161,7 +200,7 @@ namespace IngameScript
                 if (LeftHipStators.Count == 0 || LeftKneeStators.Count == 0)
                 {
                     if (RightHipStators.Count == 0 || RightKneeStators.Count == 0)
-                        return -1d;
+                        return 2.5d;
                     return (RightHipStators.First().Stator.GetPosition() - RightKneeStators.First().Stator.GetPosition()).Length();
                 }
                 return (LeftHipStators.First().Stator.GetPosition() - LeftKneeStators.First().Stator.GetPosition()).Length();
@@ -172,10 +211,21 @@ namespace IngameScript
                 if (LeftFootStators.Count == 0 || LeftKneeStators.Count == 0)
                 {
                     if (RightFootStators.Count == 0 || RightKneeStators.Count == 0)
-                        return -1d;
+                        return 2.5d;
                     return (RightFootStators.First().Stator.GetPosition() - RightKneeStators.First().Stator.GetPosition()).Length();
                 }
                 return (LeftFootStators.First().Stator.GetPosition() - LeftKneeStators.First().Stator.GetPosition()).Length();
+            }
+
+            protected double FindQuadLength()
+            {
+                if (LeftFootStators.Count == 0 || LeftQuadStators.Count == 0)
+                {
+                    if (RightFootStators.Count == 0 || RightQuadStators.Count == 0)
+                        return 2.5d;
+                    return (RightFootStators.First().Stator.GetPosition() - RightQuadStators.First().Stator.GetPosition()).Length();
+                }
+                return (LeftFootStators.First().Stator.GetPosition() - LeftQuadStators.First().Stator.GetPosition()).Length();
             }
 
             /// <summary>
@@ -187,6 +237,17 @@ namespace IngameScript
             protected virtual LegAngles CalculateAngles(double step)
             {
                 throw new Exception("CalculateAngles Not Implemented");
+            }
+            
+            public virtual void Update(MovementInfo info)
+            {
+                // Animate crouch
+                if (!Animation.IsCrouch())
+                    CrouchWaitTime = Math.Max(0, jumping ? 0 : CrouchWaitTime - info.Delta * 2 * Configuration.CrouchSpeed * CrouchSpeed);
+                else
+                    CrouchWaitTime = Math.Min(1, CrouchWaitTime + info.Delta * 2 * Configuration.CrouchSpeed * CrouchSpeed);
+
+                AnimationStep = (animationStepCounter * Configuration.AnimationSpeed * AnimationSpeedMultiplier).Modulo(1);
             }
 
             public virtual void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)

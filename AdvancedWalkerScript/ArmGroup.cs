@@ -56,6 +56,7 @@ namespace IngameScript
 
             public void Update()
             {
+                Log("is zeroing:", IsZeroing);
                 if (Pitch.Absolute() > 0.5 || Yaw.Absolute() > 0.5)
                     IsZeroing = false;
                 foreach (var joint in PitchJoints)
@@ -79,6 +80,8 @@ namespace IngameScript
                     bool done = true;
                     foreach (var joint in PitchJoints.Concat(YawJoints))
                     {
+                        if (joint.Stator.RotorLock)
+                            continue;
                         if ((joint.Stator.Angle - joint.Configuration.Offset).Absolute() > .1)
                         {
                             done = false;

@@ -26,7 +26,7 @@ namespace IngameScript
         {
             protected override LegAngles CalculateAngles(double step)
             {
-                step = step.Modulo(4);
+                step = step.Modulo(1);
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
 
                 // shamelessly borrowed from https://opentextbooks.clemson.edu/wangrobotics/chapter/inverse-kinematics/
@@ -61,7 +61,7 @@ namespace IngameScript
                 //      0 1  2 3 4
 
                 // Instead of converting (step / 4 * 360) to radians, we just multiply the number of radians instead! It's TECHNICALLY more accurate too (the output of Sin/Cos at least)!
-                double stepPercent = step / 4d;
+                double stepPercent = step; // / 4d;
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
@@ -153,7 +153,58 @@ namespace IngameScript
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
             }
 
-            public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
+            protected virtual double KneeOffset => 15;
+            protected virtual LegAngles LegAnglesMultiplier => LegAngles.MinusOne;
+            protected virtual LegAngles LeftAnglesMultiplier => new LegAngles(1, -1, -1);
+            protected virtual LegAngles RightAnglesMultiplier => new LegAngles(-1, -1, -1);
+
+            public override void Update(MovementInfo info)
+            {
+                base.Update(info);
+                Log($"- HumanoidLegGroup Update -");
+                Log($"Step: {AnimationStep}");
+                Log($"Info: {info.Direction} {info.Movement}");
+
+                LegAngles leftAngles, rightAngles;
+                switch (Animation)
+                {
+                    default:
+                    case Animation.Crouch:
+                    case Animation.Idle:
+                        AnimationStep = 0;
+                        leftAngles = CalculateAngles(0);
+                        rightAngles = CalculateAngles(0);
+                        break;
+                    case Animation.CrouchTurn:
+                    case Animation.Turn:
+                        OffsetLegs = false;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
+                        OffsetLegs = true;
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
+                        break;
+                    case Animation.CrouchWalk:
+                    case Animation.Walk:
+                        OffsetLegs = true;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
+                        break;
+                }
+
+                Log("LegAnglesMultiplier:", LegAnglesMultiplier.HipDegrees, LegAnglesMultiplier.KneeDegrees, LegAnglesMultiplier.FeetDegrees);
+                leftAngles  *= LegAnglesMultiplier;
+                rightAngles *= LegAnglesMultiplier;
+
+                leftAngles .KneeDegrees += KneeOffset;
+                rightAngles.KneeDegrees += KneeOffset;
+
+                leftAngles .FeetDegrees = -(leftAngles .HipDegrees + leftAngles .KneeDegrees);
+                rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
+
+                SetAngles(leftAngles * LeftAnglesMultiplier, rightAngles * RightAnglesMultiplier);
+                HandlePistons();
+            }
+
+            /*public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
                 double forwardsDelta = forwardsDeltaVec.Z;
                 base.Update(forwardsDeltaVec, movementVector, delta);
@@ -175,7 +226,7 @@ namespace IngameScript
                         {
                             OffsetLegs = true;
                             Animation = Animation.Walk;
-                        }*/
+                        }* /
                         AnimationStep = 0;
                         AnimationWaitTime = 0;
                         leftAngles = CalculateAngles(AnimationStep + (OffsetLegs ? IdOffset : 0));
@@ -210,13 +261,13 @@ namespace IngameScript
                             leftAngles = CalculateAngles(AnimationStep);
                             rightAngles = CalculateAngles(AnimationStepOffset);//(AnimationWaitTime + 2f) % 4);
                             break;
-                        }*/
+                        }* /
                         /*else if (absWaitTime <= 2.3f)
                         {
                             leftAngles = CalculateAngles(AnimationStep);
                             rightAngles = CalculateAngles(3f * (AnimationWaitTime / Math.Abs(AnimationWaitTime)));
                             break;
-                        }*/
+                        }* /
                         // else
                         leftAngles = CalculateAngles(AnimationStep + IdOffset);
                         rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
@@ -225,7 +276,7 @@ namespace IngameScript
                          *   3
                          * 2   4
                          *   1
-                         * */
+                         * * /
 
                         bool leftGears = AnimationStep < 3f && AnimationStep > 1f;
                         foreach (IMyLandingGear lg in LeftGears)
@@ -274,13 +325,13 @@ namespace IngameScript
                         var block = piston.Block as IMyPistonBase;
                         block.Velocity = ((float)target - block.CurrentPosition);
                     }
-                }*/
+                }* /
 
                 Log("Humanoid (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
                 Log("Humanoid (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
                 SetAngles(leftAngles * new LegAngles(1, -1, 1), rightAngles * new LegAngles(-1, 1, -1));
                 HandlePistons();
-            }
+            }*/
         }
     }
 }

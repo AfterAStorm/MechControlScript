@@ -40,9 +40,10 @@ namespace IngameScript
             BlockType next = jointHierarchy[type];
             stators.Where(b => b.CubeGrid == block.TopGrid).ToList().ForEach(stator =>
             {
-                if (stator.CustomName.Contains("+") || stator.CustomName.Contains("-"))
-                    return;
-                stator.CustomName += $" {ToInitial(next)}{suffix}";
+                //if (stator.CustomName.Contains("+") || stator.CustomName.Contains("-"))
+                //    return;
+                //stator.CustomName += $" {ToInitial(next)}{suffix}";
+                stator.CustomName = $"Joint {ToInitial(next)}{suffix}";
                 IterateThroughJoint(stators, next, stator, suffix);
             });
         }
@@ -60,6 +61,16 @@ namespace IngameScript
             Reload();
         }
 
+        string ToGroupName(int group)
+        {
+            int totalGroups = legs.Count;
+            if (group == 1)
+                return "Front";
+            if (group == totalGroups)
+                return "Back";
+            return "Middle";
+        }
+
         public void AutoRenameBlocks(string format)
         {
             Reload(); // catchup on all configs
@@ -75,6 +86,7 @@ namespace IngameScript
                     .Replace("{side}", ToName(b.Side))
                     .Replace("{block}", b.Block.BlockDefinition.SubtypeName.Contains("Hinge") ? "Hinge" : "Rotor")
                     .Replace("{group}", b.Group.ToString())
+                    .Replace("{groupname}", ToGroupName(b.Group))
                     .Replace("{tag}", $"{ToInitial(b.Type)}{ToInitial(b.Side)}{b.Group}{(b.Inverted ? "-" : "+")}");
             });
             Reload();

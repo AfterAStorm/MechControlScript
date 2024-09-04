@@ -1,9 +1,11 @@
 ﻿using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using VRageMath;
+using VRageRender;
 
 namespace IngameScript
 {
@@ -45,13 +47,14 @@ namespace IngameScript
 
         // - Walking
 
-        static float WalkCycleSpeed = 2f; // a global speed multiplier
+        static float WalkCycleSpeed = 1f; // a global speed multiplier
+        static float CrouchSpeed = 1f; // a global crouch speed multiplier
         static bool AutoHalt = true; // if it should stop walking when there is no one in the cockpit holding a direction
 
         // - Joints
 
-        static float AccelerationMultiplier = 1f; // how fast the mech accelerates, 1f is normal, .5f is half speed, 2f is double speed
-        static float DecelerationMultiplier = 1f; //  how fast the mech decelerates, same as above
+        static float AccelerationMultiplier = 1f;   // how fast the mech accelerates, 1f is normal, .5f is half speed, 2f is double speed
+        static float DecelerationMultiplier = 1.5f; // how fast the mech decelerates, same as above
 
         static float MaxRPM = float.MaxValue; // 60f is the max speed for rotors
                                               // *Configure motor limits in the blocks themselves!* //
@@ -65,6 +68,7 @@ namespace IngameScript
         // - Stablization / Steering
 
         static double SteeringSensitivity = 5; // x / 60th speed, specifies rotor/gyro RPM divided by 60, so 30 is half max power/rpm
+        static bool SteeringTakesPriority = true; // should turning take priority over walking (animation wise)
 
         // - Blocks
 
@@ -74,7 +78,7 @@ namespace IngameScript
         string IntegrityLCDName = "Mech Integrity"; // based on the Name of the block
         string StatusLCDName = "Mech Status"; // based on the Name of the block
 
-        bool UseCockpitLCDs = true; // should cockpits show the leds instead?
+        bool UseCockpitLCDs = false; // should cockpits show the leds instead?
         int IntegrityLEDNumber = 1; // starting at one, if the cockpit has more than one screen you can change it here
         int StatusLEDNumber = 3; // set to zero to disable
 
@@ -95,7 +99,7 @@ namespace IngameScript
         // OPTIONs
 
         public static Program Singleton { get; private set; }
-        public const string Version = "1.0-dev";
+        public const string Version = "1.1-indev";
 
         public const double DefaultHipOffsets = 0d;
         public const double DefaultKneeOffsets = 0d;
@@ -105,7 +109,7 @@ namespace IngameScript
 
         // Diagnostics //
 
-        static bool debugMode = false;
+        static bool debugMode = true;
 
         double[] averageRuntimes = new double[AverageRuntimeSampleSize];
         int averageRuntimeIndex = 0;
@@ -126,6 +130,13 @@ namespace IngameScript
         }
         #endregion // we need to preseve b/c if on full mode, it will turn it into a single unicode character D:
 
+        public struct MovementInfo
+        {
+            public Vector3 Direction { get; set; } // the direction, so {0, 0, -1}
+            public Vector3 Movement { get; set; } // the direction's values, so {0, 0, -.256116456}
+            public double Delta { get; set; } // delta
+        }
+
         ScriptState state;
 
         double deltaOffset = 0;
@@ -142,34 +153,40 @@ namespace IngameScript
 
         List<IMyGyro> steeringGyros = new List<IMyGyro>();
         List<Gyroscope> stabilizationGyros = new List<Gyroscope>();
-        List<LegJoint> torsoTwistStators = new List<LegJoint>();
+        public static List<LegJoint> torsoTwistStators = new List<LegJoint>();
         List<RotorGyroscope> azimuthStators = new List<RotorGyroscope>();
         List<RotorGyroscope> elevationStators = new List<RotorGyroscope>();
         List<RotorGyroscope> rollStators = new List<RotorGyroscope>();
         List<Gyroscope> azimuthGyros = new List<Gyroscope>();
         public static List<IMyShipController> cockpits = new List<IMyShipController>();
+        static bool armsEnabled = true;
         static bool crouched = false;
         static bool crouchOverride = false; // argument crouch
         public static bool jumping = false;
         double jumpCooldown = 0;
         bool limp = false;
+        bool calibrating = false;
 
         public static double targetArmPitch = 0;
         public static double targetArmYaw = 0;
         public static double armPitch = 0;
         public static double armYaw = 0;
 
-        public static double animationStepCounter = 0;
+        public static double animationStepCounter = 0; // 0 to 1, (previously 0 to 4), animation step for smoothness-ess!
 
         bool thrustersEnabled = true;
         List<IMyThrust> thrusters = new List<IMyThrust>();
 
-        Vector3 movementOverride = Vector3.Zero;
-        Vector3 movement = Vector3.Zero;
+        MovementInfo moveInfo = new MovementInfo();
+        Vector3 lastMovementDirection = Vector3.Zero;
+        Vector3 movementOverride = Vector3.Zero; // the fake input movement (override)
+        Vector3 movement = Vector3.Zero; // the current movement
+        bool backwards = false; // was going backwards last update tick
         float turnOverride = 0;
         double targetTorsoTwistAngle = -1;
 
         double lastSetupModeTick = 0;
+        double lastDrawTick = 0;
 
         int statusTick = 0;
         string[] statuses = new string[]
@@ -348,6 +365,10 @@ namespace IngameScript
                             statusRenderers.Add(new StatusRenderer(status));
                     }
                 }
+            else
+            {
+                // TODO
+            }
 
             // Get torso twist stators and other blocks
             torsoTwistStators.Clear();
@@ -384,6 +405,7 @@ namespace IngameScript
                     case BlockType.GyroscopeElevation:
                     case BlockType.GyroscopeRoll:
                     case BlockType.GyroscopeStabilization:
+                    case BlockType.GyroscopeStop:
                         stabilizationGyros.Add(new Gyroscope(block));
                         break;
                 }
@@ -403,6 +425,9 @@ namespace IngameScript
             BlockFetcher.FetchGroups(ref legs, configs, BlockFetcher.IsForLeg, BlockFetcher.CreateLegFromType, LegConfiguration.Parse, BlockFetcher.AddToLeg);
             configs = arms.Select((kv) => new KeyValuePair<int, JointConfiguration>(kv.Key, kv.Value.Configuration)).ToDictionary(pair => pair.Key, pair => pair.Value);
             BlockFetcher.FetchGroups(ref arms, configs, BlockFetcher.IsForArm, BlockFetcher.CreateArmFromType, ArmConfiguration.Parse, BlockFetcher.AddToArm);
+
+            foreach (var leg in legs.Values)
+                leg.Initialize();
             //BlockFetcher.FetchLegs();
             //BlockFetcher.FetchArms();
 
@@ -490,6 +515,21 @@ namespace IngameScript
             return value - current;
         }
 
+        float MaxComponentOf(Vector3 vector)
+        {
+            float maxComponent = vector.X;
+            maxComponent = vector.Y.Absolute() > maxComponent.Absolute() ? vector.Y : maxComponent;
+            maxComponent = vector.Z.Absolute() > maxComponent.Absolute() ? vector.Z : maxComponent;
+            return maxComponent;
+        }
+
+        float AbsMax(float x, float y)
+        {
+            if (Math.Abs(x) > Math.Abs(y))
+                return x;
+            return y;
+        }
+
         /// <summary>
         /// Main loop
         /// </summary>
@@ -505,9 +545,11 @@ namespace IngameScript
             maxRuntime = Math.Max(maxRuntime, lastRuntime);
             maxInstructions = Math.Max(maxInstructions, lastInstructions);
 
+            // calculate "fake" delta
+            double delta = Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d + deltaOffset;
             // Detailed Info - alpha red green blue
-            Echo($"[Color=#13ebca00]Advanced Walker Script[/Color] [Color=#00aaaaaa]>[/Color] [Color=#0034eb95]{Version}[/Color]");
-            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")} | {arms.Count} arm{(arms.Count != 1 ? "s" : "")}{(!ShowStats ? $" ... {statuses[statusTick]}" : "")}");
+            Echo($"[Color=#13ebca00]Mech Control Script[/Color] [Color=#00aaaaaa]>[/Color] [Color=#0034eb95]{Version}[/Color]");
+            Echo($"{legs.Count} leg group{(legs.Count != 1 ? "s" : "")} | {arms.Count} arm{(arms.Count != 1 ? "s" : "")}{(!ShowStats ? $" | {statuses[statusTick]}" : "")}");
             Echo($"");
             if (ShowStats)
             {
@@ -515,9 +557,10 @@ namespace IngameScript
                 Echo($"Average Tick: {averageRuntimes.Sum() / averageRuntimes.Length:f3}ms over {averageRuntimes.Length} samples");
                 Echo($"Max        Tick: {maxRuntime:f3}ms");
                 Echo($"Last Instructions: {lastInstructions}");
-                Echo($"Last Compexity: {lastInstructions / Runtime.MaxInstructionCount * 100:f1}%");
+                Echo($"Last Complexity: {lastInstructions / Runtime.MaxInstructionCount * 100:f1}%");
                 Echo($"Max Instructions: {maxInstructions}");
-                Echo($"Max Compexity: {maxInstructions / Runtime.MaxInstructionCount * 100:f1}%\n");
+                Echo($"Max Complexity: {maxInstructions / Runtime.MaxInstructionCount * 100:f1}%");
+                Echo($"Updates/s: {1 / delta:f1} up/s\n");
             }
 
             if (setupMode)
@@ -525,13 +568,13 @@ namespace IngameScript
 
             setupWarnings.ForEach(warning => Warn(warning.Title, warning.Info));
 
-            // Some Setup Warnings
+            // Some Setup Warnings; TODO: move to setup warnings
             if (cockpits.Count <= 0)
             {
                 List<IMyShipController> controllers = BlockFinder.GetBlocksOfType<IMyShipController>();
                 if (controllers.Count > 0) // if there is any actual controllers, add it to the warning message
                     Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls\n" +
-                        $"Maybe try changing {(controllers.Count > 1 ? $"one of the {controllers.Count} ship controller{(controllers.Count > 1 ? "s" : "")}" : $"{controllers[0].CustomName} to the main cockpit")}");
+                        $"Maybe try changing {(controllers.Count > 1 ? $"one of the {controllers.Count} ship controllers" : $"{controllers[0].CustomName} to the main cockpit")}");
                 else
                     Warn("No Cockpits Found!", "Failed to find any MAIN cockpits or remote controls");
             }
@@ -548,6 +591,7 @@ namespace IngameScript
 
             statusTick = (statusTick + 1) % statuses.Length;
 
+            // setup mode
             if (setupMode)
             {
                 if (GetUnixTime() - lastSetupModeTick > .1d)
@@ -573,52 +617,82 @@ namespace IngameScript
             }
             else
                 movementOverride = Vector3.Zero;*/
-            // Screens
-            if (integrityRenderers.Count > 0)
-            {
-                /*integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
-                integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());*/
-            }
 
             // Get delta
-            double delta = Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d + deltaOffset;
+            delta = Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d + deltaOffset;
+            float fdelta = (float)delta; // cast to float for stuff that needs it as a float
             deltaOffset = 0;
 
-            // Get controllers
+            // calibration
+            if (calibrating)
+                HandleCalibration(delta);
+            else
+            {
+                if (BestCalibration.Distance > 0)
+                    Singleton.Echo($"Calibration results: " + BestCalibration.Distance + "m with a walking speed of " + BestCalibration.WalkCycleSpeed);
+            }
+
+            // screens
+            Log($"integrity renderers: {integrityRenderers.Count}");
+            Log($"draw tick: {lastDrawTick}");
+            if (integrityRenderers.Count > 0)
+            {
+                if (lastDrawTick >= 60)
+                {
+                    lastDrawTick = 0;
+                    integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Invalidate());
+                    integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => ((IntegrityRenderer)r).Delta = delta);
+                    integrityRenderers.Concat(statusRenderers).ToList().ForEach(r => r.Render());
+                }
+                else
+                    lastDrawTick++;
+            }
+
+            // get controllers
             IMyShipController controller = cockpits.Find((pit) => pit.IsUnderControl);
             IMyShipController anyController = controller ?? (cockpits.Count > 0 ? cockpits[0] : null);
 
+            // calculate movement stuffs
             Vector3 moveInput = Vector3.IsZero(movementOverride) ? Vector3.Clamp((controller?.MoveIndicator ?? Vector3.Zero), Vector3.MinusOne, Vector3.One) : movementOverride;
             Vector2 rotationInput = controller?.RotationIndicator ?? Vector2.Zero; // X is -pitch, Y is yaw // Mouse
             float rollInput = controller?.RollIndicator ?? 0f; // left is -, right is + (infered) // Q + E
 
             float turnValue = turnOverride != 0 ? turnOverride : (ReverseTurnControls ? moveInput.X : rollInput);
-            HandleStabilization(turnValue);
+            float strafeValue = (ReverseTurnControls ? rollInput : moveInput.X);
+            HandleStabilization(turnValue != 0 ? movement.Y : 0);
 
             armPitch = -rotationInput.X;
             armYaw = rotationInput.Y;
             HandleTorsoTwist(rotationInput.Y);
+
+            Log($"arms: {arms.Count}");
+            Log($"arms enabled: {armsEnabled.ToString()}");
+            if (armsEnabled)
+                foreach (ArmGroup arm in arms.Values)
+                    arm.Update();
 
             Log($"turnValue: {turnValue}");
             Log($"azimuthStators: {azimuthStators.Count}");
             Log($"elevationStators: {elevationStators.Count}");
             Log($"rollStators: {rollStators.Count}");
 
-            Log($"thrusters: {thrusters.Count} : {ThrusterBehavior}");
+            Log($"thrusters: {thrusters.Count} with mode {ThrusterBehavior}");
 
+            // thrusters
             foreach (IMyThrust thruster in thrusters)
             {
                 thruster.ThrustOverridePercentage = (moveInput.Y > 0 && ThrusterBehavior == ThrusterMode.Override) ? 1 : 0;
                 thruster.Enabled = ThrusterBehavior == ThrusterMode.Override ? moveInput.Y > 0 : thruster.Enabled; //thrustersEnabled && (moveInput.Y > 0 || ThrusterBehavior == ThrusterMode.Hover);
             }
 
-            bool thrustesrAreThrusting = thrusters.Count > 0 ? thrusters.First().CurrentThrustPercentage > 0 : false;
+            bool thrustersAreThrusting = thrusters.Count > 0 ? thrusters.Any(t => t.CurrentThrustPercentage > 0) : false;
 
             bool turning = turnValue != 0;
             crouched = moveInput.Y < 0 || crouchOverride;
             if (crouched)
                 jumping = false;
 
+            // jumping
             if (moveInput.Y > 0)
             {
                 jumping = true;
@@ -632,9 +706,109 @@ namespace IngameScript
                     jumping = false;
             }
 
-            Log($"jumping: {jumping}");
+            Log($"jumping: {jumping} (timer {jumpCooldown})");
             Log($"crouched: {crouched}");
 
+            moveInput = new Vector3(strafeValue, turnValue, -moveInput.Z); // make inputs the same
+            // x = x
+            // y = turn
+            // z = for/bacward
+            Vector3 moveDirection = (moveInput - movement); // basically the distance from movement, minus up/down
+
+            Log($"input    : {moveInput}");
+            Log($"last non-zero input: {lastMovementDirection}");
+            Log($"direction: {moveDirection}");
+
+            if (controller != null || AutoHalt)
+            {
+                // TODO: fix multipliers to work, currently walking backwards uses decel/acc in reverse
+                movement.X += moveDirection.X * (moveDirection.X > 0 ? AccelerationMultiplier : DecelerationMultiplier) * .3f * fdelta;
+                movement.Y += moveDirection.Y * (moveDirection.Y > 0 ? AccelerationMultiplier : DecelerationMultiplier) * 1f * fdelta;
+                movement.Z += moveDirection.Z * (moveDirection.Z > 0 ? AccelerationMultiplier : DecelerationMultiplier) * .3f * fdelta;
+            }
+
+            Log($"movement: {movement}");
+            Log($"animation step counter (before): {animationStepCounter}");
+
+            float maxComponent = MaxComponentOf(movement);
+            Log($"animation step maxComponent: {maxComponent}");
+
+            // detect when we should start trying to stop between 0 and .5
+            bool isStopping = movement.Length() < 0.4 && (moveDirection.Length() < .4 || moveInput.Length() == 0) && movement.LengthSquared() > 0;
+            Log($"is stopping?: {isStopping}");
+
+            // calculate delta
+            double animationStepCounterDelta =
+                (!isStopping ?
+                    (movement.LengthSquared() > 0 ? maxComponent : 0) :
+                    AbsMax(MaxComponentOf(lastMovementDirection) * .3f, maxComponent)
+                ) * WalkCycleSpeed * .01; // .01 is constant
+
+            animationStepCounter += animationStepCounterDelta;
+
+            Log($"animation step counter delta: {animationStepCounterDelta}");
+            Log($"animation step counter (after): {animationStepCounter}");
+
+            double animationStepModulo = animationStepCounter.Modulo(1);
+            Log($"animation step (modulo): {animationStepModulo}");
+
+            if (moveInput != Vector3.Zero)
+                lastMovementDirection = moveInput;
+
+            if (isStopping)
+            {
+                if ((animationStepModulo).Absolute() < .02 || (animationStepModulo - 1).Absolute() < .02 || (animationStepModulo - .5d).Absolute() < .02) // close to point
+                {
+                    if ((animationStepModulo).Absolute() < .25 || (animationStepModulo - 1).Absolute() < .25) // close to 0/1
+                    {
+                        animationStepCounter = 0;
+                    }
+                    else if ((animationStepModulo - .5d).Absolute() < .25) // cose to .5
+                    {
+                        animationStepCounter = .5;
+                    }
+                    movement *= 0;
+                    animationStepCounterDelta = 0;
+                }
+            }
+
+            turnValue = lastMovementDirection.Y;
+            turning = turnValue != 0 && animationStepCounterDelta != 0;
+
+            bool isTurning = turning;
+            bool isWalking = animationStepCounterDelta.Absolute() > 0;
+            Animation chosenAnimation;
+            if (isWalking && (isTurning && SteeringTakesPriority ? false : true))
+            {
+                chosenAnimation = crouched ? Animation.CrouchWalk : Animation.Walk;
+            }
+            else if (isTurning)
+            {
+                chosenAnimation = crouched ? Animation.CrouchTurn : Animation.Turn;
+            }
+            else
+            {
+                chosenAnimation = crouched ? Animation.Crouch     : Animation.Idle;
+            }
+
+            Animation animation = chosenAnimation;/*turning ? (crouched ? Animation.CrouchTurn : Animation.Turn) :
+                animationStepCounterDelta.Absolute() > 0 ? (crouched ? Animation.CrouchWalk : Animation.Walk) :
+                (crouched ? Animation.Crouch : Animation.Idle);*/
+            Log($"animation: {animation}");
+
+            moveInfo.Direction = lastMovementDirection;
+            moveInfo.Movement = movement;
+            moveInfo.Delta = delta;
+
+            foreach (var leg in legs.Values)
+            {
+                leg.Animation = animation;
+                    //turning ? (!crouched ? Animation.Turn : Animation.CrouchTurn) : !crouched ? Animation.Idle : Animation.Crouch;
+                leg.Update(moveInfo);
+            }
+
+            // movement
+            /*
             Vector3 movementDirection = (moveInput - movement) * .5f;
 
             if (!AutoHalt && controller == null)
@@ -683,13 +857,13 @@ namespace IngameScript
                 foreach (LegGroup leg in legs.Values)
                 {
                     //bool wasIdle = leg.Animation.IsIdle();
-                    leg.Animation = !thrustesrAreThrusting ? (!crouched ? Animation.Walk : Animation.CrouchWalk) : Animation.Flight;
+                    leg.Animation = !thrustersAreThrusting ? (!crouched ? Animation.Walk : Animation.CrouchWalk) : Animation.Flight;
                     /*if (wasIdle && !stepEndedOn0)
                     {
                         Log("AAAAAAAAAAAAAAAAAAAAA\nAAAAAAAAA\nAAAAAAAAAAA");
                         leg.Update(2, 2);
                         did = true;
-                    }*/
+                    }* /
                 }
             }
 
@@ -697,27 +871,43 @@ namespace IngameScript
 
             animationStepCounter += animationStepMovement;
             //animationStep %= 4;
+            bool edging = false; // amazing variable name btw
+
+            // only stop when we are either at the start, or half way; then set the offset to 0 to 2 to start with the leg that last moved
             if (animationStepMovement == 0)
             {
-                // 0
-                // 1
-                // 2
-                // 3
-                // 3.99
-                if (Math.Abs(2 - animationStepCounter % 4) <= 1)
-                    animationStepCounter = 2;
-                else
-                    animationStepCounter = 0;
+                // 0 - 4, check if it's close to 0 or 2, if not, keep moving forwards
+                if (Math.Abs((2 - animationStepCounter).Modulo(4)) > .1f && Math.Abs((-animationStepCounter).Modulo(4)) > .1f)
+                {
+                    edging = true;
+                    animationStepMovement = .02f * (backwards ? -1 : 1);
+                }
+                else // lock to 0 o 2
+                {
+                    if (Math.Abs(2 - animationStepCounter % 4) <= 1)
+                        animationStepCounter = 2;
+                    else
+                        animationStepCounter = 0;
+                }
+                animationStepCounter += animationStepMovement; // continue moving :D
+            }
+            else
+            {
+                backwards = animationStepMovement < 0;
             }
 
             //animationStep = forcedStep;
+            Log("step movement:" + animationStepMovement);
             Log("step:" + animationStepCounter);
+            Log("edging:" + edging.ToString());
+            Log("backwards:" + backwards.ToString());
             foreach (LegGroup leg in legs.Values)
-                leg.Update(movementDelta, movementVec, originalDelta);
-
-            Log($"arms: {arms.Count}");
-            foreach (ArmGroup arm in arms.Values)
-                arm.Update();
+            {
+                leg.Animation = leg.Animation.IsIdle() ? (edging ? Animation.Walk : leg.Animation) : leg.Animation;
+                leg.Update(!edging ? movementDelta : Vector3.Forward * new Vector3((float)animationStepMovement), lastMovementNormal, originalDelta);
+            }
+            if (movementVec.Length().Absolute() > 0)
+                lastMovementNormal = movementVec; // */
             lastInstructions = Runtime.CurrentInstructionCount;
         }
     }

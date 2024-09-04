@@ -43,7 +43,6 @@ namespace IngameScript
             IMyShipController reference = cockpits.Count > 0 ? cockpits.First() : null;
             if (reference == null)
             {
-                Log($"no cockpit");
                 return;
             }
             Vector3D gravity = reference.GetTotalGravity();
@@ -72,7 +71,7 @@ namespace IngameScript
             pitch *= Math.Sign(forward.Dot(gravity.Normalized()));
 
             Log($"pitch?: {pitch} >< {forward.Dot(gravity.Normalized())}");
-            Log($"roll?: {roll}");
+            Log($"roll? : {roll}");
 
 
             /*Vector3D crossed = gravity.Normalized().Cross(forward);
@@ -86,8 +85,8 @@ namespace IngameScript
             double pitchDirection = pitch * 2;
             double rollDirection = roll * 2;
 
-            Log($"roll dir: {rollDirection} fpr {rollStators.Count} rotors");
-            Log($"pitc dir: {pitchDirection} fpr {elevationStators.Count} rotors");
+            Log($"roll  dir: {rollDirection} for {rollStators.Count} rotors");
+            Log($"pitch dir: {pitchDirection} for {elevationStators.Count} rotors");
 
             float azimuthValue = -steerValue * ((float)SteeringSensitivity / 60f) * 60f;
             bool isTurning = azimuthValue.Absolute() > 0;
@@ -124,6 +123,8 @@ namespace IngameScript
                 stator.SetRPM(rollValue * (float)stator.Configuration.InversedMultiplier);
             }
 
+            float totalRotation = Math.Abs(azimuthValue) + Math.Abs(elevationValue) + Math.Abs(rollValue);
+            bool isStabilizing = totalRotation > 3f;
             foreach (var gyro in stabilizationGyros)
             {
                 if (gyro.GyroType == BlockType.GyroscopeStabilization || gyro.GyroType == BlockType.GyroscopeRoll)
@@ -135,6 +136,8 @@ namespace IngameScript
 
                 if (gyro.GyroType == BlockType.GyroscopeAzimuth && !isTurning)
                     gyro.Gyro.Enabled = true;
+                else if (gyro.GyroType == BlockType.GyroscopeStop)
+                    gyro.Gyro.GyroOverride = gyro.Configuration.Inversed ? isStabilizing : !isStabilizing;
                 else
                     gyro.Gyro.Enabled = true;/*isTurning ?*//*
                         gyro.Gyro.Roll.Absolute() > 0.1f ||

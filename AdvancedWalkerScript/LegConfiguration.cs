@@ -63,8 +63,8 @@ namespace IngameScript
             {
                 Log($"Comparing LegConfiguration {this} with {obj}");
                 LegConfiguration a = (LegConfiguration)obj;
-                Log($"Comparison: {this.LegType} == {a.LegType} && {this.HipOffsets} == {a.HipOffsets} && {this.KneeOffsets} == {a.KneeOffsets} && {this.FootOffsets} == {a.FootOffsets} && {this.ThighLength} == {a.ThighLength} &&{this.CalfLength} == {a.CalfLength} && {this.StepLength} == {a.StepLength} &&{this.StepHeight} == {a.StepHeight} && {this.AnimationSpeed} == {a.AnimationSpeed} && {this.CrouchSpeed} == {a.CrouchSpeed}");
-                return LegType == a.LegType && HipOffsets == a.HipOffsets && KneeOffsets == a.KneeOffsets && FootOffsets == a.FootOffsets && ThighLength == a.ThighLength && CalfLength == a.CalfLength && StepLength == a.StepLength && StepHeight == a.StepHeight && AnimationSpeed == a.AnimationSpeed && CrouchSpeed == a.CrouchSpeed;
+                Log($"Comparison: {this.LegType} == {a.LegType} && {this.HipOffsets} == {a.HipOffsets} && {this.KneeOffsets} == {a.KneeOffsets} && {this.FootOffsets} == {a.FootOffsets} && {this.QuadOffsets} == {a.QuadOffsets} && {this.ThighLength} == {a.ThighLength} &&{this.CalfLength} == {a.CalfLength} && {this.StepLength} == {a.StepLength} &&{this.StepHeight} == {a.StepHeight} && {this.AnimationSpeed} == {a.AnimationSpeed} && {this.CrouchSpeed} == {a.CrouchSpeed}");
+                return LegType == a.LegType && HipOffsets == a.HipOffsets && KneeOffsets == a.KneeOffsets && FootOffsets == a.FootOffsets && QuadOffsets == a.QuadOffsets && ThighLength == a.ThighLength && CalfLength == a.CalfLength && StepLength == a.StepLength && StepHeight == a.StepHeight && AnimationSpeed == a.AnimationSpeed && CrouchSpeed == a.CrouchSpeed;
             }
 
             public override int GetHashCode()
@@ -140,7 +140,7 @@ CalfLength=2.5
                     StepLength = ini.Get("Leg", "StepLength").ToDouble(1),
                     StepHeight = ini.Get("Leg", "StepHeight").ToDouble(1),
 
-                    AnimationSpeed = ini.Get("Leg", "WalkSpeed").ToDouble(2),
+                    AnimationSpeed = ini.Get("Leg", "WalkSpeed").ToDouble(1),
                     CrouchSpeed = ini.Get("Leg", "CrouchSpeed").ToDouble(1),
 
                     defaultValue = 1

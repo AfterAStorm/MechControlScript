@@ -51,7 +51,22 @@ namespace IngameScript
                 if (IsHinge)
                     return angle.ClampHinge() - current; // lock between -90 to 90; aka angle = angle - current
                 else
-                    return (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D*/
+                {
+                    double closestDirection = (angle.Modulo(360) - current + 540).Modulo(360) - 180; // find the closest direction to the target angle; thank you https://math.stackexchange.com/a/2898118 :D*/
+                    // ^\ does require the more correct Modulo (in my opinion) that accounts for negative numbers
+                    // check min/max
+                    /*double min = Stator.LowerLimitDeg;
+                    double max = Stator.UpperLimitDeg;
+                    if (Math.Abs(min) != float.MaxValue && current + closestDirection >= min && closestDirection < 0)
+                    {
+                        return -closestDirection; // turn back to positive, to go the other way
+                    }
+                    else if (Math.Abs(max) != float.MaxValue && current + closestDirection <= max && closestDirection > 0)
+                    {
+                        return -closestDirection; // turn back to negative, to go the other way
+                    }*/
+                    return closestDirection;
+                }
             }
 
             public float GetRPMFor(double angle)

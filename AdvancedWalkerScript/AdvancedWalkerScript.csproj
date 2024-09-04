@@ -43,6 +43,7 @@
     <Compile Include="ArmGroup.cs" />
     <Compile Include="BlockFetcher.cs" />
     <Compile Include="Features\AutoNaming.cs" />
+    <Compile Include="Features\Calibration.cs" />
     <Compile Include="Features\Commands.cs" />
     <Compile Include="Features\ScriptState.cs" />
     <Compile Include="Features\TorsoTwist.cs" />

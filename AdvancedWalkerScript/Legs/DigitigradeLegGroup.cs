@@ -27,7 +27,7 @@ namespace IngameScript
             protected override LegAngles CalculateAngles(double step)
             {
                 step *= -1;
-                step = step.Modulo(4);
+                step = step.Modulo(1);
                 bool crouch = Animation == Animation.Crouch || Animation == Animation.CrouchWalk;
 
                 // shamelessly borrowed from https://opentextbooks.clemson.edu/wangrobotics/chapter/inverse-kinematics/
@@ -62,7 +62,7 @@ namespace IngameScript
                 //      0 1  2 3 4
 
                 // Instead of converting (step / 4 * 360) to radians, we just multiply the number of radians instead! It's TECHNICALLY more accurate too (the output of Sin/Cos at least)!
-                double stepPercent = step / 4d;
+                double stepPercent = step;
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
@@ -152,6 +152,73 @@ namespace IngameScript
                 double footDeg =
                     (kneeDeg - hipDeg);
                 return new double[] { hipDeg, kneeDeg, footDeg };*/
+            }
+
+            public override void Update(MovementInfo info)
+            {
+                base.Update(info);
+                Log($"- DigitigradeLegGroup Update -");
+                Log($"Step: {AnimationStep}");
+                Log($"Info: {info.Direction} {info.Movement}");
+
+                LegAngles leftAngles, rightAngles;
+                switch (Animation)
+                {
+                    default:
+                    case Animation.Crouch:
+                    case Animation.Idle:
+                        leftAngles = CalculateAngles(AnimationStep + (OffsetLegs ? IdOffset : 0));
+                        rightAngles = CalculateAngles(AnimationStepOffset + (OffsetLegs ? IdOffset : 0));
+                        break;
+                    case Animation.CrouchTurn:
+                    case Animation.Turn:
+                        OffsetLegs = false;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
+                        OffsetLegs = true;
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
+                        break;
+                    case Animation.CrouchWalk:
+                    case Animation.Walk:
+                        OffsetLegs = true;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset);
+                        break;
+                    case Animation.Force:
+                        leftAngles = CalculateAngles(AnimationStep);
+                        rightAngles = CalculateAngles(AnimationStep);
+                        break;
+                }
+
+                leftAngles *= new LegAngles(-1, -1, 1);
+                rightAngles *= new LegAngles(-1, -1, 1);
+
+                //leftAngles.FeetRadians = Math.PI - leftAngles.HipRadians - leftAngles.KneeRadians;
+                //rightAngles.FeetRadians = Math.PI - rightAngles.HipRadians - rightAngles.KneeRadians;
+                leftAngles.KneeDegrees -= 10;
+                rightAngles.KneeDegrees -= 10;
+
+                double foot = leftAngles.FeetDegrees;
+
+                leftAngles.FeetDegrees = -(leftAngles.HipDegrees + leftAngles.KneeDegrees);//180 - leftAngles.HipDegrees.Absolute180() - leftAngles.KneeDegrees.Absolute180();
+                rightAngles.FeetDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees);
+
+                /*double stepMultiplier = AnimationStep.Modulo(2) / 2;
+                if (stepMultiplier > .5)
+                    stepMultiplier = (.5 - stepMultiplier) * 2;
+                else
+                    stepMultiplier *= 2;*/
+
+                leftAngles.FeetDegrees *= -leftAngles.KneeDegrees / 45 * .5;
+                rightAngles.FeetDegrees *= -rightAngles.KneeDegrees / 45 * .5;
+                leftAngles.FeetDegrees += 25;
+                rightAngles.FeetDegrees += 25;
+
+                leftAngles.QuadDegrees = (leftAngles.HipDegrees + leftAngles.KneeDegrees + leftAngles.FeetDegrees);
+                rightAngles.QuadDegrees = -(rightAngles.HipDegrees + rightAngles.KneeDegrees + rightAngles.FeetDegrees);
+
+                Log("Digitigrade (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees);
+                Log("Digitigrade (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees);
+                SetAngles(leftAngles * new LegAngles(1, -1, -1, 1), rightAngles * new LegAngles(-1, -1, -1, -1));
             }
 
             public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)

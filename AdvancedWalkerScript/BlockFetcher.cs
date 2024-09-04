@@ -50,6 +50,7 @@ namespace IngameScript
             GyroscopeElevation, // rotor or gyroscope, pitch
             GyroscopeRoll, // rotor or gyroscope, roll
             GyroscopeStabilization,
+            GyroscopeStop, // turn off when gyros in use
 
             Thruster,
 
@@ -229,6 +230,11 @@ namespace IngameScript
                             if (!(block is IMyGyro))
                                 break; // Liars!
                             blockType = BlockType.GyroscopeStabilization;
+                            break;
+                        case "gs": // gs fro gyro stop
+                            if (!(block is IMyGyro))
+                                break;
+                            blockType = BlockType.GyroscopeStop;
                             break;
                         case "mg":
                         case "lg":

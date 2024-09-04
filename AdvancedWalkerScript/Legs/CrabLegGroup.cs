@@ -32,14 +32,14 @@ namespace IngameScript
 
             protected LegAngles CalculateAngles(double step, Vector3 forwardsDeltaVec, Vector3 movementVec, bool left, bool invertedCrouch = false)
             {
-                step = step.Modulo(4);
-                double turnRotation = Math.Sign(forwardsDeltaVec.Y);
+                //step = step.Modulo(4);
+                double turnRotation = 1; // when it's negative, the step goes backwards too, so it doesn't actual matter :p //Math.Sign(movementVec.Y);
                 double leftInverse = left ? -1d : 1d;
                 double idOffset = IdOffset == 0 ? 1 : -1;
 
                 LegAngles angles = new LegAngles();
 
-                double stepPercent = step / 4d;
+                double stepPercent = step.Modulo(1);
                 double sin = Math.Sin(stepPercent * 2 * Math.PI);
                 double cos = Math.Cos(stepPercent * 2 * Math.PI);
 
@@ -58,9 +58,9 @@ namespace IngameScript
                 angles.KneeDegrees = -45 + crouchKneeOffset + (cos) * 15 * (1 - Math.Abs(Math.Sign(forwardsDeltaVec.X))) - (cos * movementVec.X * 15);
                 angles.FeetDegrees = 80 - crouchFootOffset - (cos) * 10 * (1 - Math.Abs(Math.Sign(forwardsDeltaVec.X))) - (cos * movementVec.X * -10);*/
 
-                double thigh = LeftHipStators.Count > 0 && LeftKneeStators.Count > 0 ? (LeftHipStators[0].Stator.WorldMatrix.Translation - LeftKneeStators[0].Stator.WorldMatrix.Translation).Length() : 2.5;
-                double calf = LeftKneeStators.Count > 0 && LeftFootStators.Count > 0 ? (LeftKneeStators[0].Stator.WorldMatrix.Translation - LeftFootStators[0].Stator.WorldMatrix.Translation).Length() : 2.5;
-                Log($"thigh, calf: {thigh}, {calf}");
+                /*double thigh = CalculatedCalfLength;//LeftHipStators.Count > 0 && LeftKneeStators.Count > 0 ? (LeftHipStators[0].Stator.WorldMatrix.Translation - LeftKneeStators[0].Stator.WorldMatrix.Translation).Length() : 2.5;
+                double calf = CalculatedQuadLength;// LeftKneeStators.Count > 0 && LeftFootStators.Count > 0 ? (LeftKneeStators[0].Stator.WorldMatrix.Translation - LeftFootStators[0].Stator.WorldMatrix.Translation).Length() : 2.5;
+                //Log($"thigh, calf: {thigh}, {calf}");
 
                 if (calf > thigh)
                 {
@@ -71,19 +71,19 @@ namespace IngameScript
                 {
                     thigh = thigh / calf;
                     calf = 2.5;
-                }
+                }*/
 
-                Log($"thigh, calf calc: {thigh}, {calf}");
+                //Log($"thigh, calf calc: {thigh}, {calf}");
                 Log($"turn rotation: {turnRotation}");
 
                 double x = 3;
-                double y = .65;
+                double y = .65 + (StandingHeight - .95f);
 
                 // y+ is down
                 // x+ is ????
 
                 if (Animation.IsTurn()) // turn
-                    y += MathHelper.Clamp((cos), -1, 0);//MathHelper.Clamp(cos * , 0, 1) * 1;
+                    y += MathHelper.Clamp(cos, -1, 0);//MathHelper.Clamp(cos * , 0, 1) * 1;
                 else if (Animation.IsWalk() && Math.Abs(movementVec.X) > 0) // strafe
                 {
                     //x += (sin) * 1 * leftInverse;
@@ -91,13 +91,13 @@ namespace IngameScript
                     // x += MathHelper.Clamp(sin, -1, 1) * 1;
                     // y += -MathHelper.Clamp(cos, 0, 1);
                     //  x -= .5d - (sin * .5d);
-                    x -= Math.Sign(movementVec.X) * leftInverse * sin * .85 + .85;//.5 + sin * leftInverse * .5;//-= .5d - ((cos * leftInverse) * .5d);
-                    y += -MathHelper.Clamp(cos + .5, 0, 1) * .5d;
+                    x -= /*Math.Sign(movementVec.X) **/ leftInverse * sin * .85 + .85;//.5 + sin * leftInverse * .5;//-= .5d - ((cos * leftInverse) * .5d);
+                    y += -MathHelper.Clamp(cos + .5, 0, 1) * .5d * Configuration.StepHeight;
                 }
                 else if (Animation.IsWalk()) // walk
                 {
-                    x += (cos) * leftInverse * .75;
-                    y += (cos - 1) * .5;
+                    x += (cos) * -.5;//* leftInverse * .75;
+                    y += (cos - 1) * .3 * Configuration.StepHeight;
                 }
 
                 /* DANCE
@@ -105,19 +105,19 @@ namespace IngameScript
                    y += cos * .5;
                  */
 
-                y -= 1.5 * CrouchWaitTime;
-                thigh = 2.5;//Configuration.ThighLength;//2.5; // TODO: calculate
-                calf = 2.5;//Configuration.CalfLength + .25;//2.75;
+                y -= 1.25 * CrouchWaitTime;
+                double thigh = CalculatedThighLength;//Configuration.ThighLength;//2.5; // TODO: calculate
+                double calf = CalculatedCalfLength;//Configuration.CalfLength + .25;//2.75;
                 //                                            2.5  , 2.75
                 //y = 1 + MathHelper.Clamp(cos * .5, 0, .5) * 2;
                 //x = sin * .5 + 3.5;
                 LegAngles ik = InverseKinematics.CalculateLeg(thigh, calf, x, y);//InverseKinematics.CalculateLeg(Configuration.ThighLength, Configuration.CalfLength, 1, 1);
 
                 if (Animation.IsTurn())
-                    angles.HipDegrees = sin * turnRotation * 15;
+                    angles.HipDegrees = DirectionMultiplier * sin * turnRotation * 15;
                 else
                     angles.HipDegrees =
-                        -sin
+                        -sin * DirectionMultiplier
                         * leftInverse
                         * (10 + 5 * Configuration.StepLength)
                         - (CrouchWaitTime * Configuration.HipOffsets * .5 * (invertedCrouch ? -1 : 1));
@@ -128,7 +128,54 @@ namespace IngameScript
 
                 return angles;
             }
-            
+
+            public override void Initialize()
+            {
+                base.Initialize();
+
+                CalculatedThighLength = Configuration.ThighLength > 0 ? Configuration.ThighLength : FindCalfLength();
+                CalculatedCalfLength = Configuration.CalfLength > 0 ? Configuration.CalfLength : FindQuadLength();
+            }
+
+            protected virtual double DirectionMultiplier => 1d;
+            protected virtual LegAngles LegAnglesOffset => LegAngles.Zero;
+
+            public override void Update(MovementInfo info)
+            {
+                base.Update(info);
+                Log($"- CrabLegGroup Update -");
+                Log($"Step: {AnimationStep}");
+                Log($"Info: {info.Direction} {info.Movement}");
+
+                LegAngles leftAngles, rightAngles;
+                switch (Animation)
+                {
+                    default:
+                    case Animation.Crouch:
+                    case Animation.Idle:
+                        AnimationStep = 0;
+                        leftAngles = CalculateAngles(0, info.Movement, info.Direction, false, false);
+                        rightAngles = CalculateAngles(0, info.Movement, info.Direction, false, true);
+                        break;
+                    case Animation.CrouchTurn:
+                    case Animation.Turn:
+                        OffsetLegs = true;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset, info.Movement, info.Direction, true, false);
+                        rightAngles = CalculateAngles(AnimationStepOffset + IdOffset, info.Movement, info.Direction, false, false);
+                        break;
+                    case Animation.CrouchWalk:
+                    case Animation.Walk:
+                        OffsetLegs = true;
+                        leftAngles = CalculateAngles(AnimationStep + IdOffset, info.Movement, info.Direction, true, false);
+                        rightAngles = CalculateAngles(AnimationStepOffset+ IdOffset, info.Movement, info.Direction, false, false);
+                        break;
+                }
+
+                leftAngles += LegAnglesOffset;
+                rightAngles += LegAnglesOffset;
+                SetAngles(leftAngles, rightAngles * new LegAngles(1, 1, 1, 1));
+            }
+
             public override void Update(Vector3 forwardsDeltaVec, Vector3 movementVector, double delta)
             {
                 //double forwardsDelta = forwardsDeltaVec.Z;
@@ -160,7 +207,7 @@ namespace IngameScript
 
                 Log("Inverse Spideroid (right):", rightAngles.HipDegrees, rightAngles.KneeDegrees, rightAngles.FeetDegrees, rightAngles.QuadDegrees);
                 Log("Inverse Spideroid (left):", leftAngles.HipDegrees, leftAngles.KneeDegrees, leftAngles.FeetDegrees, leftAngles.QuadDegrees);
-                SetAngles(leftAngles * new LegAngles(1, 1, 1, 1), rightAngles * new LegAngles(1, 1, 1, 1));
+                SetAngles(leftAngles * new LegAngles(1, 1, 1, 1), rightAngles * new LegAngles(1, 1, -1, 1));
             }
 
            /*protected override void SetAnglesOf(List<LegJoint> leftStators, List<LegJoint> rightStators, double leftAngle, double rightAngle, double offset)

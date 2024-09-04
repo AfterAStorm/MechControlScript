@@ -93,6 +93,10 @@ namespace IngameScript
                     AutoRetype((int)TryParseFloat(arguments[1]));
                     break;
 
+                case "calibrate":
+                    calibrating = true;
+                    break;
+
                 case "debug":
                     debugMode = !debugMode;
                     break;
@@ -133,15 +137,15 @@ namespace IngameScript
                     break;
 
                 case "steplength":
-                    double stepLength = (double)TryParseFloat(arguments[1]);
+                    //double stepLength = (double)TryParseFloat(arguments[1]);
                     foreach (LegGroup g in legs.Values)
-                        g.Configuration.StepLength = stepLength;
+                        g.Configuration.StepLength = ParseFloatArgument((float)g.Configuration.StepLength, arguments[1]);
                     break;
 
                 case "stepheight":
-                    double stepHeight = (double)TryParseFloat(arguments[1]);
+                    //double stepHeight = (double)TryParseFloat(arguments[1]);
                     foreach (LegGroup g in legs.Values)
-                        g.Configuration.StepHeight = stepHeight;
+                        g.Configuration.StepHeight = ParseFloatArgument((float)g.Configuration.StepHeight, arguments[1]);
                     break;
 
                 case "autohalt":
@@ -154,6 +158,23 @@ namespace IngameScript
                 case "twist":
                     targetTorsoTwistAngle = arguments.Length > 1 ? TryParseFloat(arguments[1]) : 0;
                     targetTorsoTwistAngle = targetTorsoTwistAngle.Modulo(360);
+                    break;
+
+                case "armcontrol":
+                    if (arguments.Length > 1)
+                    {
+                        if (arguments[1].Equals("on"))
+                        {
+                            armsEnabled = true;
+                            break;
+                        }
+                        else if (arguments[1].Equals("off"))
+                        {
+                            armsEnabled = false;
+                            break;
+                        }
+                    }
+                    armsEnabled = !armsEnabled;
                     break;
 
                 case "arm":
