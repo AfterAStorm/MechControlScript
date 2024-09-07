@@ -8,4 +8,5 @@ using System.Diagnostics.CodeAnalysis;
 // For some reason, my MDK version likes prohibiting things that aren't actually prohibited, not sure if it's the MDK or VS
 #pragma warning disable ProhibitedMemberRule // Prohibited Type Or Member
 [assembly: SuppressMessage("Whitelist", "ProhibitedMemberRule:Prohibited Type Or Member", Justification = "<Pending>", Scope = "member", Target = "~M:IngameScript.Program.LegGroup.SetAnglesOf(System.Collections.Generic.List{IngameScript.Program.Joint},System.Collections.Generic.List{IngameScript.Program.Joint},System.Double,System.Double,System.Double)")]
+[assembly: SuppressMessage("Whitelist", "ProhibitedMemberRule:Prohibited Type Or Member", Justification = "<Pending>", Scope = "member", Target = "~M:IngameScript.Program.Main(System.String,Sandbox.ModAPI.Ingame.UpdateType)")]
 // # pragma warning restore ProhibitedMemberRule // Prohibited Type Or Member

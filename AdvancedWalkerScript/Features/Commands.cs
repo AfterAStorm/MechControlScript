@@ -117,7 +117,7 @@ namespace IngameScript
                         ThrusterBehavior = (ThrusterMode)(((int)ThrusterBehavior + 1) % 2);
                     break;
                 // set methods //
-                case "speed":
+                case "stepspeed":
                     WalkCycleSpeed += ParseFloatArgument(WalkCycleSpeed, arguments[1]);
                     break;
 
