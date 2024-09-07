@@ -22,7 +22,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public void HandleCommands(string argument, UpdateType updateSource)
+        public void HandleCommands(string argument)
         {
             string[] arguments = argument.ToLower().Split(' ');
             switch (arguments[0].Trim()) // Clean up argument, allow inputs
@@ -184,11 +184,6 @@ namespace IngameScript
                         arm.ToZero();
                     //armRoll = 0;
                     break;
-            }
-            if (!updateSource.HasFlag(UpdateType.Update1))
-            {
-                deltaOffset += Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d;
-                return;
             }
         }
     }

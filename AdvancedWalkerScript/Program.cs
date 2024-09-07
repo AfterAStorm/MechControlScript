@@ -583,11 +583,15 @@ namespace IngameScript
 
             // Handle arguments / commands
             if (!string.IsNullOrEmpty(argument))
-                HandleCommands(argument, updateSource);
+                foreach (var cmd in argument.Split('|'))
+                    HandleCommands(cmd.Trim());
 
             // Only update during specified update times!
             if (!updateSource.HasFlag(UpdateType.Update1))
+            {
+                deltaOffset += Runtime.TimeSinceLastRun.TotalMilliseconds / 1000d; // add "fake" offset so it's accurate for real steps
                 return;
+            }
 
             statusTick = (statusTick + 1) % statuses.Length;
 
