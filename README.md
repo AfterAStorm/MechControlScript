@@ -1,4 +1,4 @@
-# AdvancedWalkerScript
+# MechControlScript
 
 An *advanced* walker/mech building script that allows your creactions to come slighty more alive.
 
